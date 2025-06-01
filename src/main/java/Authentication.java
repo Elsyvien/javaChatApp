@@ -1,4 +1,5 @@
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 
 public class Authentication extends User {
     private final BigInteger publicKey;
@@ -28,10 +29,10 @@ public class Authentication extends User {
     /**
      * Prove identity by encrypting a challenge from the server.
      */
-    public BigInteger respondToChallenge(String challenge) {
-        BigInteger challengeInt = new BigInteger(challenge.getBytes(StandardCharsets.UTF_8));
-        return challengeInt.modPow(privateKey, modulus); // "sign" it
-    }
+    //public BigInteger respondToChallenge(String challenge) {
+        //BigInteger challengeInt = new BigInteger(challenge.getBytes(StandardCharsets.UTF_8));
+        //return challengeInt.modPow(privateKey, modulus); // "sign" it
+    //}
 
     /**
      * Sendable format (Base64 or string) – for registration/login.
