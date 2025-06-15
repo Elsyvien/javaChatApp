@@ -1,8 +1,12 @@
+import WebSocketHandling.ChatClientEndpoint;
+import WebSocketHandling.MessageListener;
+import model.Message; // Importing the Message model class for handling chat messages
+
 import javax.swing.*;
-import java.net.URI;
+/*import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.net.http.HttpResponse;*/
 
 
 public class MChat {
@@ -24,13 +28,15 @@ public class MChat {
         // Send on button click
         sendButton.addActionListener(e -> {
             String message = messageField.getText();
-            sendMessageToServer("Max", message); // Replace "Max" with your actual sender name
+            //sendMessageToServer("Max", message); // Replace "Max" with your actual sender name. Deprecated method
             System.out.println("Message sent: " + message);
             messageField.setText("");
         });
     }
-
-    public static void sendMessageToServer(String sender, String content) {
+    
+    
+    // Deprecated method for sending messages to the server using HTTP POST
+    /*public static void sendMessageToServer(String sender, String content) {
         try {
             String data = "sender=" + sender + "&content=" + content + System.currentTimeMillis();
             HttpRequest request = HttpRequest.newBuilder()
@@ -46,5 +52,5 @@ public class MChat {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
+    }*/
 }
