@@ -18,11 +18,13 @@ public class MChat {
 
     public static void main(String[] args) {
         User user = new User("Max");
-        
+        String currentURI = "ws://localhost:8080/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
+
+
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
         ChatClientEndpoint chatClient = new ChatClientEndpoint(); // Parameterlos
         try {
-            container.connectToServer(chatClient, URI.create("ws://localhost:8080/chat")); // Connect to the WebSocket server
+            container.connectToServer(chatClient, URI.create(currentURI)); // Connect to the WebSocket server
         } catch (jakarta.websocket.DeploymentException | java.io.IOException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(null, "Failed to connect to server:\n" + e.getMessage(), "Connection Error", JOptionPane.ERROR_MESSAGE);
@@ -49,9 +51,8 @@ public class MChat {
         sendButton.addActionListener(e -> {
             String messageString = messageField.getText();
             //sendMessageToServer("Max", message); // Replace "Max" with your actual sender name. Deprecated method
-            Message message = new Message(user.getName(), messageString, System.currentTimeMillis());
+            Message message = new Message(user.getName(), messageString);
             chatClient.sendMessage(message); // Send the message using the WebSocket client
-            System.out.println("Message sent: " + messageString);
             messageField.setText("");
         });
 
