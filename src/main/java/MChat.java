@@ -17,12 +17,12 @@ import java.net.http.HttpResponse;
 public class MChat {
 
     public static void main(String[] args) {
-        User user = new User("Max");
+        User user = new User("MChatUser");
         String currentURI = "ws://localhost:8080/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
-
 
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
         ChatClientEndpoint chatClient = new ChatClientEndpoint(); // Parameterlos
+
         try {
             container.connectToServer(chatClient, URI.create(currentURI)); // Connect to the WebSocket server
         } catch (jakarta.websocket.DeploymentException | java.io.IOException e) {
@@ -56,15 +56,19 @@ public class MChat {
             messageField.setText("");
         });
 
-        // Set up a listener to receive messages
+
         chatClient.setMessageListener(message -> {
-            SwingUtilities.invokeLater(() -> { // Update the UI on the Event Dispatch Thread
-                String currentText = messageReceiver.getText(); // Get the current text in the message receiver
-                String newText = currentText + message.getSender() + ": " + message.getContent() + "\n"; // Append the new message to the current text
-                System.out.println("Received message: " + newText); 
+            SwingUtilities.invokeLater(() -> {
+                String currentText = messageReceiver.getText();
+                if (currentText == null || currentText.trim().isEmpty()) {
+                    currentText = "";
+                }
+                String newText = currentText + message.getSender() + ": " + message.getContent() + "\n";
+                System.out.println("Received message: " + newText);
                 messageReceiver.setText(newText);
             });
         });
+
     }
     
     

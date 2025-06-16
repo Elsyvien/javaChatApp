@@ -59,14 +59,20 @@ public class ChatClientEndpoint {
     @OnMessage // Method to handle incoming messages
     public void onMessage(String messageJson) {
         try {
-            lastMessage = jsonb.fromJson(messageJson, Message.class);
-            messageBuffer[bufferIndex] = lastMessage;
-            bufferIndex = (bufferIndex + 1) % messageBuffer.length; // Modulo operation to wrap around the buffer index
-            System.out.println("Received message: " + lastMessage.getContent() + " from " + lastMessage.getSender());
+            System.out.println("[CLIENT] RAW JSON: " + messageJson);
+            Message message = jsonb.fromJson(messageJson, Message.class);
+            System.out.println("[CLIENT] Parsed: sender=" + message.getSender() + ", content=" + message.getContent());
 
-            // Notify the listener about the new message
+            // Speichern für getLastMessage()
+            this.lastMessage = message;
+
+            //In den Ringpuffer schreiben
+            this.messageBuffer[this.bufferIndex] = message;
+            this.bufferIndex = (this.bufferIndex + 1) % this.messageBuffer.length;
+
+            // Listener benachrichtigen
             if (listener != null) {
-                listener.onNewMessage(lastMessage);
+                listener.onNewMessage(message);
             }
 
         } catch (Exception e) {
@@ -77,8 +83,8 @@ public class ChatClientEndpoint {
     public void sendMessage(Message message) {
         try {
             if (userSession != null && userSession.isOpen()) {
-                String Messagejson = jsonb.toJson(message); // Convert the Message object to JSON
-                userSession.getBasicRemote().sendText(Messagejson); // Send the JSON message over the WebSocket
+                String messagejson = jsonb.toJson(message); // Convert the Message object to JSON
+                userSession.getBasicRemote().sendText(messagejson); // Send the JSON message over the WebSocket
                 System.out.println("Sent message: " + message.getContent() + " from " + message.getSender()); // Log the sent message
         }   else { // Check if the session is open before sending
                 System.err.println("WebSocket session is not open. Cannot send message.");
