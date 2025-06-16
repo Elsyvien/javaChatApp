@@ -45,14 +45,11 @@ public class ChatClientEndpoint {
         this.listener = listener;
     }
 
-    public ChatClientEndpoint(URI endpointURI) {
-        try {
-            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-            container.connectToServer(this, endpointURI);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public ChatClientEndpoint() {
+        // Default constructor for the WebSocket client endpoint
+        // No URI is needed here as the connection will be established later
     }
+
     @OnOpen // Method to handle opening a WebSocket connection
     public void onOpen(Session userSession) {
         this.userSession = userSession; // Store the session for later use

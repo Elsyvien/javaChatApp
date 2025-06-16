@@ -1,6 +1,8 @@
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
+import model.User;
+
 public class Authentication extends User {
     private final BigInteger publicKey;
     private final BigInteger privateKey;
