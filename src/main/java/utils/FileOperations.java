@@ -20,8 +20,13 @@ public class FileOperations {
     private final File file;
     
     public FileOperations(String filePath) {
-        this.filePath = filePath;
-        this.file = new File(filePath);
+        if ((filePath.startsWith("~" + File.separator)) || filePath.equals("~")) { // Need this for Unix Support on java
+            String home = System.getProperty("user.home");
+            this.filePath = home + filePath.substring(1);
+        } else {
+            this.filePath = filePath;
+        }
+        this.file = new File(this.filePath);
     }
     
     public void writeToFile(String content) throws IOException {
