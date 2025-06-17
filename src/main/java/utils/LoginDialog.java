@@ -1,6 +1,11 @@
 package utils;
 
-import java.nio.file.*;
+import utils.FileOperations;
+
+import java.io.File;
+import java.io.IOException;
+
+import java.io.IOException;
 
 import javax.swing.*;
 
@@ -36,6 +41,14 @@ public class LoginDialog {
                 JOptionPane.showMessageDialog(null, "Username and password cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
                 return showLoginDialog(); // Retry login dialog
             }
+            FileOperations fileOps = new FileOperations("~/javaChatApp/UserData/credentials.txt");
+            try {
+                fileOps.writeToFile(username + ":" + password + System.lineSeparator());
+            } catch (IOException e) {
+                System.err.println("[CLIENT] Error writing credentials to file: " + e.getMessage());
+                JOptionPane.showMessageDialog(null, "Fehler beim Speichern der Login Daten! Log prüfen für mehr Infos.", "Error", JOptionPane.ERROR_MESSAGE);
+                return showLoginDialog(); // Retry login dialog
+            }
             return new String[] {username, password};
         } else if (option == 1) {
             // Prompt for both new username and new password
@@ -45,12 +58,14 @@ public class LoginDialog {
                 "Neuer Benutzername:", newUsernameField,
                 "Neues Passwort:", newPasswordField
             };
+
             int newUserOption = JOptionPane.showConfirmDialog(
                 null,
                 newUserMessage,
                 "Neuen Benutzer anlegen",
                 JOptionPane.OK_CANCEL_OPTION
             );
+
             if (newUserOption == JOptionPane.OK_OPTION) {
                 String newUsername = newUsernameField.getText();
                 String newPassword = new String(newPasswordField.getPassword());
