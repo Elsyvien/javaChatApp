@@ -51,27 +51,30 @@ public class LoginDialog {
             }
             return new String[] {username, password};
         } else if (option == 1) {
-            // Prompt for both new username and new password
             JTextField newUsernameField = new JTextField();
             JPasswordField newPasswordField = new JPasswordField();
             Object[] newUserMessage = {
                 "Neuer Benutzername:", newUsernameField,
                 "Neues Passwort:", newPasswordField
             };
-
             int newUserOption = JOptionPane.showConfirmDialog(
                 null,
                 newUserMessage,
                 "Neuen Benutzer anlegen",
                 JOptionPane.OK_CANCEL_OPTION
             );
-
             if (newUserOption == JOptionPane.OK_OPTION) {
                 String newUsername = newUsernameField.getText();
                 String newPassword = new String(newPasswordField.getPassword());
                 if (!newUsername.isEmpty() && !newPassword.isEmpty()) {
-                    usernameField.setText(newUsername);
-                    passwordField.setText(newPassword);
+                    FileOperations fileOps = new FileOperations("~/javaChatApp/UserData/credentials.txt");
+                    try {
+                        fileOps.writeToFile(newUsername + ":" + newPassword + System.lineSeparator());
+                        JOptionPane.showMessageDialog(null, "Benutzer erfolgreich angelegt.", "Info", JOptionPane.INFORMATION_MESSAGE);
+                    } catch (IOException e) {
+                        System.err.println("[CLIENT] Error writing new user to file: " + e.getMessage());
+                        JOptionPane.showMessageDialog(null, "Fehler beim Speichern des Benutzers!", "Fehler", JOptionPane.ERROR_MESSAGE);
+                    }
                     return showLoginDialog();
                 } else {
                     JOptionPane.showMessageDialog(null, "Benutzername und Passwort dürfen nicht leer sein.", "Fehler", JOptionPane.ERROR_MESSAGE);
