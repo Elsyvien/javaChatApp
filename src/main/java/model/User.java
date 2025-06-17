@@ -19,7 +19,7 @@ public class User {
         this.key = new RSAKey(); // Generate a new RSA key for the user 
     }
 
-    public String getName() {
+    public String getUsername() {
         return name;
     }
 

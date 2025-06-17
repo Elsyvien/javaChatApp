@@ -27,7 +27,9 @@ import java.net.URI; // For URI handling
  * in real-time over a WebSocket connection.
  * @author Max Staneker, Mia Schienagel
  */
-
+import Authentication.Authentication; // Importing the Authentication class for handling user authentication
+import model.User; // Importing the User model class for user-related operations
+import model.Message;
 
 @ClientEndpoint // Marks this class as a WebSocket client endpoint
 public class ChatClientEndpoint {
@@ -36,45 +38,65 @@ public class ChatClientEndpoint {
 
     private Session userSession; // Represents the WebSocket session
     private Message lastMessage;
-    private Message[] messageBuffer = new Message[10]; // Buffer for storing the last 10 messages
+    private final Message[] messageBuffer = new Message[10]; // Buffer for storing the last 10 messages
     private int bufferIndex = 0; // Index for the message buffer
 
     private MessageListener listener;
+    private final Authentication authentication; // Added Authentication field
+
+    // Constructor with Authentication parameter
+    public ChatClientEndpoint(Authentication authentication) {
+        this.authentication = authentication;
+    }
 
     public void setMessageListener(MessageListener listener) {
         this.listener = listener;
     }
 
-    public ChatClientEndpoint() {
-        // Default constructor for the WebSocket client endpoint
-        // No URI is needed here as the connection will be established later
-    }
-
     @OnOpen // Method to handle opening a WebSocket connection
     public void onOpen(Session userSession) {
         this.userSession = userSession; // Store the session for later use
-        System.out.println("Connected to server: " + userSession.getBasicRemote());
+        System.out.println("[CLIENT] Connected to server: " + userSession.getBasicRemote());
+        try {
+            userSession.getBasicRemote().sendText("auth-request"); // Send an initial message to the server
+            System.out.println("[CLIENT] Sent auth-request to server. " + userSession.getId());
+        } catch (Exception e) {
+            System.err.println("[CLIENT] Error sending auth-request: " + e.getMessage());
+            throw new RuntimeException("Failed to send auth-request", e);
+        }
     }
 
     @OnMessage // Method to handle incoming messages
     public void onMessage(String messageJson) {
         try {
-            System.out.println("[CLIENT] RAW JSON: " + messageJson);
-            Message message = jsonb.fromJson(messageJson, Message.class);
-            System.out.println("[CLIENT] Parsed: sender=" + message.getSender() + ", content=" + message.getContent());
+            System.out.println("[CLIENT] Server says: " + messageJson);
+            if (messageJson.startsWith("challenge:")) { // Check if the message is a challenge from the server
+                String challenge = messageJson.substring("challenge:".length()); // Extract the challenge from the message
+                authentication.setChallenge(challenge); // Set the challenge in the Authentication object
+                String response = authentication.buildAuthResponse();
+                userSession.getBasicRemote().sendText(response);
+            } else if (messageJson.equals("auth-success")) { // Check if the authentication was successful
+                System.out.println("[CLIENT] Authenticated successfully!" + "\n" + "[CLIENT] Session ID: " + userSession.getId() + "\n" + "[CLIENT] You can now send messages.");
+            } else if (messageJson.equals("auth-failure")) { // Check if the authentication failed
+                System.out.println("[CLIENT] Auth failed!" + "\n" + "[CLIENT] Please check your credentials and try again.");
+                userSession.close(); // Close the session if authentication fails
+            } else { // Handle regular chat messages
+                System.out.println("[CLIENT] RAW JSON: " + messageJson);
+                Message message = jsonb.fromJson(messageJson, Message.class);
+                System.out.println("[CLIENT] Parsed: sender=" + message.getSender() + ", content=" + message.getContent());
 
-            // Speichern für getLastMessage()
-            this.lastMessage = message;
+                // Speichern für getLastMessage()
+                this.lastMessage = message;
 
-            //In den Ringpuffer schreiben
-            this.messageBuffer[this.bufferIndex] = message;
-            this.bufferIndex = (this.bufferIndex + 1) % this.messageBuffer.length;
+                //In den Ringpuffer schreiben
+                this.messageBuffer[this.bufferIndex] = message;
+                this.bufferIndex = (this.bufferIndex + 1) % this.messageBuffer.length;
 
-            // Listener benachrichtigen
-            if (listener != null) {
-                listener.onNewMessage(message);
+                // Listener benachrichtigen
+                if (listener != null) {
+                    listener.onNewMessage(message);
+                }
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -85,9 +107,9 @@ public class ChatClientEndpoint {
             if (userSession != null && userSession.isOpen()) {
                 String messagejson = jsonb.toJson(message); // Convert the Message object to JSON
                 userSession.getBasicRemote().sendText(messagejson); // Send the JSON message over the WebSocket
-                System.out.println("Sent message: " + message.getContent() + " from " + message.getSender()); // Log the sent message
+                System.out.println("[CLIENT] Sent message: " + message.getContent() + " from " + message.getSender()); // Log the sent message
         }   else { // Check if the session is open before sending
-                System.err.println("WebSocket session is not open. Cannot send message.");
+                System.err.println("[CLIENT] WebSocket session is not open. Cannot send message.");
                 throw new IllegalStateException("WebSocket session is not open");
             }
         } catch (Exception e) { // Handle any exceptions that occur during message sending
@@ -98,7 +120,7 @@ public class ChatClientEndpoint {
     @OnClose // Method to handle closing a WebSocket connection
     public void onClose(Session userSession) {
         this.userSession = null; // Clear the session
-        System.out.println("Connection closed: " + userSession.getId());
+        System.out.println("[CLIENT] Connection closed: " + userSession.getId() + "\n" + "[CLIENT] Session has been successfully Terminated.");
     }
     
     @OnError // Method to handle errors in WebSocket communication

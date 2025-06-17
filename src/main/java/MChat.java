@@ -1,5 +1,4 @@
 import WebSocketHandling.ChatClientEndpoint;
-
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 
@@ -13,6 +12,7 @@ import java.net.http.HttpResponse;
 */
 import model.Message;
 import model.User;
+import Authentication.Authentication;
 import utils.LoginDialog;
 
 public class MChat {
@@ -25,10 +25,12 @@ public class MChat {
         }
         String username = loginInfo[0];
         User user = new User(username);
+        Authentication authentication = new Authentication(user);
+        // Only one ChatClientEndpoint, constructed with authentication
+        ChatClientEndpoint chatClient = new ChatClientEndpoint(authentication);
         String currentURI = "ws://localhost:8080/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
 
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-        ChatClientEndpoint chatClient = new ChatClientEndpoint(); // Parameterlos
 
         try {
             container.connectToServer(chatClient, URI.create(currentURI)); // Connect to the WebSocket server
@@ -36,7 +38,7 @@ public class MChat {
             e.printStackTrace();
             JOptionPane.showMessageDialog(null, "Failed to connect to server:\n" + e.getMessage(), "Connection Error", JOptionPane.ERROR_MESSAGE);
             return;
-        } // Handle connection errors
+        }
 
         JFrame frame = new JFrame("Chat Client");
         JTextField messageField = new JTextField(30);
@@ -58,7 +60,7 @@ public class MChat {
         sendButton.addActionListener(e -> {
             String messageString = messageField.getText();
             //sendMessageToServer("Max", message); // Replace "Max" with your actual sender name. Deprecated method
-            Message message = new Message(user.getName(), messageString);
+            Message message = new Message(user.getUsername(), messageString);
             chatClient.sendMessage(message); // Send the message using the WebSocket client
             messageField.setText("");
         });
@@ -81,6 +83,7 @@ public class MChat {
 
     // Deprecated method for sending messages to the server using HTTP POST
     /*public static void sendMessageToServer(String sender, String content) {
+    String sender = "User"; // Replace with actual sender name
         try {
             String data = "sender=" + sender + "&content=" + content + System.currentTimeMillis();
             HttpRequest request = HttpRequest.newBuilder()
