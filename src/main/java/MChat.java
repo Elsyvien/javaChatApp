@@ -19,10 +19,7 @@ public class MChat {
 
     public static void main(String[] args) {
         String[] loginInfo = LoginDialog.showLoginDialog();
-        if (loginInfo == null || loginInfo[0] == null || loginInfo[0].trim().isEmpty()) {
-            System.out.println("Login cancelled. Exiting.");
-            return; // Exit if login is cancelled or username is empty
-        }
+        
         String username = loginInfo[0];
         User user = new User(username);
         Authentication authentication = new Authentication(user);

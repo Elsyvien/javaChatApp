@@ -23,25 +23,17 @@ public class LoginDialog {
         if (option == JOptionPane.OK_OPTION) {
             String username = usernameField.getText();
             String password = new String(passwordField.getPassword());
+            if (username.isEmpty() || password.isEmpty()) {
+                System.err.println("[CLIENT] Username or password is empty.");
+                JOptionPane.showMessageDialog(null, "Username and password cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
+                return showLoginDialog(); // Retry login dialog
+            }
             return new String[] {username, password};
         } else {
+            JOptionPane.showMessageDialog(null, "Login cancelled.", "Cancelled", JOptionPane.WARNING_MESSAGE);
+            System.err.println("[CLIENT] Login cancelled by user." + "\n" + "[CLIENT] Exiting application...");
             System.exit(0); // User cancelled → exit app
             return null; // will never reach here
         }
-    }
-
-    public static void main(String[] args) {
-        // 1️⃣ Login Dialog vor UI:
-        String[] credentials = showLoginDialog();
-        String username = credentials[0];
-        String password = credentials[1];
-
-        System.out.println("Username: " + username);
-        System.out.println("Password: " + password);
-
-        // 2️⃣ Danach deine Chat-UI starten:
-        SwingUtilities.invokeLater(() -> {
-            // z.B. new ChatClientGUI(username).setVisible(true);
-        });
     }
 }
