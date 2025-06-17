@@ -1,8 +1,7 @@
 import WebSocketHandling.ChatClientEndpoint;
+
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
-import model.Message; // Importing the Message model class for handling chat messages
-import model.User; // Importing the User model class for user management
 
 import java.net.URI;
 
@@ -12,12 +11,20 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 */
-
+import model.Message;
+import model.User;
+import utils.LoginDialog;
 
 public class MChat {
 
     public static void main(String[] args) {
-        User user = new User("MChatUser");
+        String[] loginInfo = LoginDialog.showLoginDialog();
+        if (loginInfo == null || loginInfo[0] == null || loginInfo[0].trim().isEmpty()) {
+            System.out.println("Login cancelled. Exiting.");
+            return; // Exit if login is cancelled or username is empty
+        }
+        String username = loginInfo[0];
+        User user = new User(username);
         String currentURI = "ws://localhost:8080/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
 
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
@@ -29,8 +36,8 @@ public class MChat {
             e.printStackTrace();
             JOptionPane.showMessageDialog(null, "Failed to connect to server:\n" + e.getMessage(), "Connection Error", JOptionPane.ERROR_MESSAGE);
             return;
-        } // Handle connection errors 
-        
+        } // Handle connection errors
+
         JFrame frame = new JFrame("Chat Client");
         JTextField messageField = new JTextField(30);
         JButton sendButton = new JButton("Send");
@@ -70,8 +77,8 @@ public class MChat {
         });
 
     }
-    
-    
+
+
     // Deprecated method for sending messages to the server using HTTP POST
     /*public static void sendMessageToServer(String sender, String content) {
         try {
