@@ -1,61 +1,40 @@
 package utils;
 
-/*
- * Small utility class for file operations.
- * This class is intended to handle file-related operations such as reading and writing files.
- * It can be extended in the future to include more complex file handling functionalities.
- * @author Max Staneker, Mia Schienagel
- * @version 0.1
- */
-import java.io.File;
 import java.io.IOException;
-
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
-
+/**
+ * Utility class for reading and writing files.
+ * It can be expanded as needed for the application.
+ */
 public class FileOperations {
-    private final String filePath;
-    private final File file;
-    
-    public FileOperations(String filePath) {
-        if ((filePath.startsWith("~" + File.separator)) || filePath.equals("~")) { // Need this for Unix Support on java
-            String home = System.getProperty("user.home");
-            this.filePath = home + filePath.substring(1);
-        } else {
-            this.filePath = filePath;
+
+    /**
+     * Reads all lines of a file as UTF-8. If the file does not exist,
+     * an empty list is returned.
+     */
+    public List<String> readAllLines(String filePath) throws IOException {
+        Path path = Path.of(filePath);
+        if (!Files.exists(path)) {
+            return new ArrayList<>();
         }
-        this.file = new File(this.filePath);
-    }
-    
-    public void writeToFile(String content) throws IOException {
-        // Writes the given content to the file at the specified file path
-        Files.write(Path.of(filePath), 
-                    content.getBytes(), 
-                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-    }
-    
-    public String readFromFile() throws IOException {
-        // Reads the content of the file at the specified file path
-        return Files.readString(Path.of(filePath));
-    }
-    
-    public void deleteFile() throws IOException {
-        // Deletes the file at the specified file path
-        if (!file.delete()) {
-            throw new IOException("Failed to delete the file: " + filePath);
-        }
-    }
-    
-    public boolean fileExists() {
-        return file.exists(); // Checks if the file exists
-    }
-    public String getFilePath() {
-        return filePath; // Returns the file path
-    }
-    public File getFile() {
-        return file; // Returns the File object
+        return Files.readAllLines(path, StandardCharsets.UTF_8);
     }
 
+    /**
+     * Appends a single line to the given file using UTF-8 encoding.
+     * The file is created if it does not already exist.
+     */
+    public void appendLine(String filePath, String line) throws IOException {
+        Path path = Path.of(filePath);
+        Files.write(path,
+                (line + System.lineSeparator()).getBytes(StandardCharsets.UTF_8),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.APPEND);
+    }
 }

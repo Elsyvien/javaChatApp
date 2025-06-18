@@ -1,117 +1,129 @@
 package utils;
 
-import utils.FileOperations;
-
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.*;
+import java.awt.*;
 
-public class LoginDialog {
+import utils.FileOperations;
+/**
+ * A dialog for user login and registration.
+ * It allows users to log in with existing credentials or register a new account.
+ * The user data is stored in a simple text file.
+ * @author Max Staneker, Mia Schienagel
+ */
 
-    private static final String CREDENTIALS_PATH = "~/javaChatApp/UserData/credentials.txt";
-    private static final FileOperations fileOps = new FileOperations(CREDENTIALS_PATH);
+public class LoginDialog extends JDialog {
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private JButton loginButton;
+    private JButton registerButton;
+    private String loggedInUser;
 
-    public static String[] showLoginDialog() {
-        JTextField usernameField = new JTextField();
-        JPasswordField passwordField = new JPasswordField();
+    private final FileOperations fileOps = new FileOperations();
+    private static final String USER_FILE = "users.txt";
 
-        String[] options = {"Login", "New User", "Cancel"};
-
-        Object[] message = {
-            "Username:", usernameField,
-            "Password:", passwordField
-        };
-
-        int option = JOptionPane.showOptionDialog(
-            null,
-            message,
-            "Login",
-            JOptionPane.DEFAULT_OPTION,
-            JOptionPane.PLAIN_MESSAGE,
-            null,
-            options,
-            options[0]
-        );
-
-        if (option == 0) {
-            return handleLogin(usernameField, passwordField);
-        } else if (option == 1) {
-            return handleNewUser();
-        } else {
-            JOptionPane.showMessageDialog(null, "Login cancelled.", "Cancelled", JOptionPane.WARNING_MESSAGE);
-            System.err.println("[CLIENT] Login cancelled by user.\n[CLIENT] Exiting application...");
-            System.exit(0); // User cancelled → exit app
-            return null; // will never reach here
-        }
+    public LoginDialog(Frame parent) {
+        super(parent, "Login", true);
+        initComponents();
+        pack();
+        setLocationRelativeTo(parent);
     }
 
-    private static String[] handleLogin(JTextField usernameField, JPasswordField passwordField) {
+    private void initComponents() {
+        usernameField = new JTextField(15);
+        passwordField = new JPasswordField(15);
+        loginButton = new JButton("Login");
+        registerButton = new JButton("Register");
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(new JLabel("Username:"), gbc);
+        gbc.gridx = 1;
+        panel.add(usernameField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(new JLabel("Password:"), gbc);
+        gbc.gridx = 1;
+        panel.add(passwordField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        panel.add(loginButton, gbc);
+        gbc.gridx = 1;
+        panel.add(registerButton, gbc);
+
+        setLayout(new BorderLayout());
+        add(panel, BorderLayout.CENTER);
+
+        loginButton.addActionListener(e -> onLogin());
+        registerButton.addActionListener(e -> onRegister());
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+    }
+
+    private void onLogin() {
         String username = usernameField.getText();
         String password = new String(passwordField.getPassword());
-
-        if (username.isEmpty() || password.isEmpty()) {
-            System.err.println("[CLIENT] Username or password is empty.");
-            JOptionPane.showMessageDialog(null, "Username and password cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
-            return showLoginDialog(); // Retry login dialog
+        if (username.isBlank() || password.isBlank()) {
+            JOptionPane.showMessageDialog(this, "Please enter username and password", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
-
         try {
-            File file = new File(fileOps.getFilePath());
-            File parentDir = file.getParentFile();
-            if (parentDir != null && !parentDir.exists()) {
-                parentDir.mkdirs();
+            if (checkCredentials(username, password)) {
+                loggedInUser = username;
+                JOptionPane.showMessageDialog(this, "Login successful", "Success", JOptionPane.INFORMATION_MESSAGE);
+                dispose();
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid credentials", "Error", JOptionPane.ERROR_MESSAGE);
             }
-            fileOps.writeToFile(username + ":" + password + System.lineSeparator());
-        } catch (IOException e) {
-            System.err.println("[CLIENT] Error writing credentials to file: " + e.getMessage());
-            JOptionPane.showMessageDialog(null, "Error saving login data! Check log for details.", "Error", JOptionPane.ERROR_MESSAGE);
-            return showLoginDialog(); // Retry login dialog
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error reading user file", "Error", JOptionPane.ERROR_MESSAGE);
         }
-
-        return new String[] {username, password};
     }
 
-    private static String[] handleNewUser() {
-        JTextField newUsernameField = new JTextField();
-        JPasswordField newPasswordField = new JPasswordField();
-
-        Object[] newUserMessage = {
-            "Neuer Benutzername:", newUsernameField,
-            "Neues Passwort:", newPasswordField
-        };
-
-        int newUserOption = JOptionPane.showConfirmDialog(
-            null,
-            newUserMessage,
-            "Neuen Benutzer anlegen",
-            JOptionPane.OK_CANCEL_OPTION
-        );
-
-        if (newUserOption == JOptionPane.OK_OPTION) {
-            String newUsername = newUsernameField.getText();
-            String newPassword = new String(newPasswordField.getPassword());
-
-            if (!newUsername.isEmpty() && !newPassword.isEmpty()) {
-                try {
-                    File file = new File(fileOps.getFilePath());
-                    File parentDir = file.getParentFile();
-                    if (parentDir != null && !parentDir.exists()) {
-                        parentDir.mkdirs();
-                    }
-                    fileOps.writeToFile(newUsername + ":" + newPassword + System.lineSeparator());
-                    JOptionPane.showMessageDialog(null, "Benutzer erfolgreich angelegt.", "Info", JOptionPane.INFORMATION_MESSAGE);
-                } catch (IOException e) {
-                    System.err.println("[CLIENT] Error writing new user to file: " + e.getMessage());
-                    JOptionPane.showMessageDialog(null, "Fehler beim Speichern des Benutzers!", "Fehler", JOptionPane.ERROR_MESSAGE);
-                }
-                return showLoginDialog();
-            } else {
-                JOptionPane.showMessageDialog(null, "Benutzername und Passwort dürfen nicht leer sein.", "Fehler", JOptionPane.ERROR_MESSAGE);
-                return showLoginDialog();
-            }
-        } else {
-            return showLoginDialog();
+    private void onRegister() {
+        String username = usernameField.getText();
+        String password = new String(passwordField.getPassword());
+        if (username.isBlank() || password.isBlank()) {
+            JOptionPane.showMessageDialog(this, "Please enter username and password", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+        try {
+            fileOps.appendLine(USER_FILE, username + ":" + password);
+            JOptionPane.showMessageDialog(this, "Registration successful", "Success", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error writing user file", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private boolean checkCredentials(String username, String password) throws IOException {
+        List<String> lines = fileOps.readAllLines(USER_FILE);
+        for (String line : lines) {
+            String[] parts = line.split(":", 2);
+            if (parts.length == 2 && parts[0].equals(username) && parts[1].equals(password)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Shows the dialog and returns the username of the logged in user.
+     * Returns {@code null} if the dialog was closed without a successful login.
+     */
+    public String showDialog() {
+        setVisible(true);
+        return loggedInUser;
     }
 }

@@ -17,10 +17,18 @@ import utils.LoginDialog;
 
 public class MChat {
 
-    public static void main(String[] args) {
-        String[] loginInfo = LoginDialog.showLoginDialog();
+    public static void main(String[] args) {    
+        LoginDialog loginDialog = new LoginDialog(null);
+        String username = loginDialog.showDialog();
         
-        String username = loginInfo[0];
+        if (username == null) {
+            System.err.println("[CLIENT] No username provided, exiting.");
+            JOptionPane.showMessageDialog(null, "No username provided, exiting.", "Error", JOptionPane.ERROR_MESSAGE);
+            return; // Exit if no username is provided
+        }
+        JOptionPane.showMessageDialog(null, "Welcome " + username + "!", "Login Successful", JOptionPane.INFORMATION_MESSAGE);
+        System.out.println("[CLIENT] Username provided: " + username);
+
         User user = new User(username);
         Authentication authentication = new Authentication(user);
         // Only one ChatClientEndpoint, constructed with authentication
