@@ -28,11 +28,18 @@ public class Authentication {
     // Sign the challenge with the user's private key
     public BigInteger signChallenge() {
         if (currentChallenge == null) {
+            System.err.println("[CLIENT] AUTH ERROR: No challenge set. Use setChallenge() first.");
             throw new IllegalStateException("No challenge set. Use setChallenge() first.");
         }
         RSAKey key = user.getKey();
-        BigInteger challengeHash = new BigInteger(currentChallenge, 16);
-        return key.sign(challengeHash);
+        
+
+        System.out.println("[CLIENT DEBUG] Challenge HEX: " + currentChallenge);
+        BigInteger challengeBigInt = new BigInteger(currentChallenge, 16);
+        System.out.println("[CLIENT DEBUG] Challenge BigInt: " + challengeBigInt.toString(16));
+        BigInteger signature = key.sign(challengeBigInt);
+        System.out.println("[CLIENT DEBUG] Signature: " + signature.toString(16));
+        return signature;
     }
 
     // Builds the full auth-response message to send back
@@ -43,9 +50,9 @@ public class Authentication {
 
     // Verify the signed challenge with the user's public key
     public boolean verify(String challenge, BigInteger signature) {
-        BigInteger hash = new BigInteger(challenge.getBytes()); // Convert the challenge to a BigInteger
-        RSAKey key = user.getKey(); // Get the user's RSA key
-        return key.verify(hash, signature); // Verify the signature using the user's public key
+        BigInteger challengeBigInt = new BigInteger(challenge, 16); // Correct HEX decoding
+        RSAKey key = user.getKey();
+        return key.verify(challengeBigInt, signature);
     }
 
     public String getCurrentChallenge() {

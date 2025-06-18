@@ -30,9 +30,12 @@ public class MChat {
         System.out.println("[CLIENT] Username provided: " + username);
 
         User user = new User(username);
+        System.out.println("[CLIENT] User created: " + user.getUsername() + "Continueing with chat client setup...");
         Authentication authentication = new Authentication(user);
         // Only one ChatClientEndpoint, constructed with authentication
         ChatClientEndpoint chatClient = new ChatClientEndpoint(authentication);
+        System.out.println("[CLIENT] Public key: " + user.getKey().getE().toString(16) + " " + user.getKey().getN().toString(16));
+        
         String currentURI = "ws://localhost:8080/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
 
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
@@ -40,6 +43,7 @@ public class MChat {
         try {
             container.connectToServer(chatClient, URI.create(currentURI)); // Connect to the WebSocket server
         } catch (jakarta.websocket.DeploymentException | java.io.IOException e) {
+            System.err.println("[CLIENT] Failed to connect to server: " + e.getMessage());
             e.printStackTrace();
             JOptionPane.showMessageDialog(null, "Failed to connect to server:\n" + e.getMessage(), "Connection Error", JOptionPane.ERROR_MESSAGE);
             return;

@@ -16,19 +16,31 @@ public class RSAKey {
     private final BigInteger d; // Private exponent
 
     public RSAKey() {
-        SecureRandom random = new SecureRandom(); // Allows for secure random number generation
+        /*
+         * ORIGINAL CODE:
+         * SecureRandom random = new SecureRandom(); // Allows for secure random number generation
+         * 
+         * BigInteger p = BigInteger.probablePrime(512, random); // Generate a probable prime number p
+         * BigInteger q = BigInteger.probablePrime(512, random); // Generate a probable prime number q
+         * 
+         * if (p.equals(q)) { // Highly Unlikely, but check if p and q are distinct. Safety check
+         *     throw new IllegalArgumentException("RSA KEYGEN ERROR: p and q must be distinct prime numbers.");
+         * }
+         * n = p.multiply(q); // Calculate n = p * q, multiply is safer than using the `*` operator directly
+         * 
+         * BigInteger phi = p.subtract(BigInteger.ONE).multiply(q.subtract(BigInteger.ONE)); // Calculate Euler's totient function φ(n) = (p-1)(q-1)
+         * e = BigInteger.valueOf(65537); // Common choice for e, must be coprime to φ(n)
+         * d = e.modInverse(phi); // Calculate d, the modular multiplicative inverse of e mod φ(n)
+         */
 
-        BigInteger p = BigInteger.probablePrime(512, random); // Generate a probable prime number p
-        BigInteger q = BigInteger.probablePrime(512, random); // Generate a probable prime number q
+        // DEBUG VERSION: Use fixed primes for consistent keys during debugging
+        BigInteger p = new BigInteger("F7E75FDC469067FFDC4E847C51F452DF", 16);
+        BigInteger q = new BigInteger("E85CED54AF57E53E092113E62F436F4F", 16);
 
-        if (p.equals(q)) { // Highly Unlikely, but check if p and q are distinct. Safety check
-            throw new IllegalArgumentException("p and q must be distinct prime numbers.");
-        }
-        n = p.multiply(q); // Calculate n = p * q, multiply is safer than using the `*` operator directly
-        
-        BigInteger phi = p.subtract(BigInteger.ONE).multiply(q.subtract(BigInteger.ONE)); // Calculate Euler's totient function φ(n) = (p-1)(q-1)
-        e = BigInteger.valueOf(65537); // Common choice for e, must be coprime to φ(n)
-        d = e.modInverse(phi); // Calculate d, the modular multiplicative inverse of e mod φ(n)
+        n = p.multiply(q);
+        BigInteger phi = p.subtract(BigInteger.ONE).multiply(q.subtract(BigInteger.ONE));
+        e = BigInteger.valueOf(65537);
+        d = e.modInverse(phi);
     }
 
     public BigInteger sign(BigInteger hash) { 
