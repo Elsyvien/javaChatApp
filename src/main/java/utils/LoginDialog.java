@@ -27,7 +27,7 @@ public class LoginDialog extends JDialog {
     private String loggedInUser;
 
     private final FileOperations fileOps = new FileOperations();
-    private static final String USER_FILE = "users.txt";
+    private static final String USER_FILE = "UserData/users.txt";
 
     public LoginDialog(Frame parent) {
         super(parent, "Login", true);
@@ -76,18 +76,22 @@ public class LoginDialog extends JDialog {
         String username = usernameField.getText();
         String password = new String(passwordField.getPassword());
         if (username.isBlank() || password.isBlank()) {
+            System.err.println("[CLIENT] Please enter username and password");
             JOptionPane.showMessageDialog(this, "Please enter username and password", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         try {
             if (checkCredentials(username, password)) {
                 loggedInUser = username;
+                System.out.println("[CLIENT] User crendentials have been found...proceeding");
                 JOptionPane.showMessageDialog(this, "Login successful", "Success", JOptionPane.INFORMATION_MESSAGE);
                 dispose();
             } else {
+                System.err.println("[CLIENT] Invalid credentials for user: " + username);
                 JOptionPane.showMessageDialog(this, "Invalid credentials", "Error", JOptionPane.ERROR_MESSAGE);
             }
         } catch (IOException ex) {
+            System.err.println("[CLIENT] Error reading user file: " + ex.getMessage());
             JOptionPane.showMessageDialog(this, "Error reading user file", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -96,20 +100,23 @@ public class LoginDialog extends JDialog {
         String username = usernameField.getText();
         String password = new String(passwordField.getPassword());
         if (username.isBlank() || password.isBlank()) {
+            System.out.println("[CLIENT] Please enter username and password");
             JOptionPane.showMessageDialog(this, "Please enter username and password", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         try {
             fileOps.appendLine(USER_FILE, username + ":" + password);
+            System.out.println("[CLIENT] User registered: " + username);
             JOptionPane.showMessageDialog(this, "Registration successful", "Success", JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException ex) {
+            System.err.println("[CLIENT] Error writing user file: " + ex.getMessage());
             JOptionPane.showMessageDialog(this, "Error writing user file", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private boolean checkCredentials(String username, String password) throws IOException {
         List<String> lines = fileOps.readAllLines(USER_FILE);
-        for (String line : lines) {
+        for (String line : lines) { // Binary Seach 
             String[] parts = line.split(":", 2);
             if (parts.length == 2 && parts[0].equals(username) && parts[1].equals(password)) {
                 return true;
