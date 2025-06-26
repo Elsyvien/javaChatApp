@@ -36,7 +36,7 @@ public class MChat {
         ChatClientEndpoint chatClient = new ChatClientEndpoint(authentication);
         System.out.println("[CLIENT] Public key: " + user.getKey().getE().toString(16) + " " + user.getKey().getN().toString(16));
         
-        String currentURI = "ws://localhost:8080/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
+        String currentURI = "ws://localhost:8081/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
 
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
 
