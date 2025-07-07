@@ -10,6 +10,7 @@ import java.util.Properties;
 /**
  * Manages user credentials and RSA keys.
  * Stores and loads user data including private/public keys.
+ * Using Properties for easy serialization. (Basically a Hashmap just as a file)
  * @author Max Staneker, Mia Schienagel
  * @version 0.1
  */
@@ -19,6 +20,7 @@ public class CredentialsManager {
     
     /**
      * Save user credentials including RSA keys to file
+     * Now supports multiple users by using username-prefixed properties
      */
     public static void saveCredentials(String username, BigInteger n, BigInteger e, BigInteger d) {
         try {
@@ -28,15 +30,26 @@ public class CredentialsManager {
                 Files.createDirectories(credentialsDir);
             }
             
-            Properties props = new Properties();
-            props.setProperty("username", username);
-            props.setProperty("public.n", n.toString(16));
-            props.setProperty("public.e", e.toString(16));
-            props.setProperty("private.d", d.toString(16));
-            
             File credentialsFile = new File(credentialsDir.toFile(), CREDENTIALS_FILE);
+            Properties props = new Properties();
+            
+            // Load existing credentials if file exists
+            if (credentialsFile.exists()) {
+                try (FileInputStream fis = new FileInputStream(credentialsFile)) {
+                    props.load(fis);
+                }
+            }
+            
+            // Add new user credentials with username prefix
+            String userPrefix = "user." + username + ".";
+            props.setProperty(userPrefix + "public.n", n.toString(16));
+            props.setProperty(userPrefix + "public.e", e.toString(16));
+            props.setProperty(userPrefix + "private.d", d.toString(16));
+            props.setProperty(userPrefix + "registrationTime", String.valueOf(System.currentTimeMillis()));
+            
+            // Save updated properties
             try (FileOutputStream fos = new FileOutputStream(credentialsFile)) {
-                props.store(fos, "User Credentials - Generated on " + new java.util.Date());
+                props.store(fos, "Multi-User Credentials - Updated on " + new java.util.Date());
             }
             
             System.out.println("[CLIENT] Credentials saved for user: " + username);
@@ -59,7 +72,7 @@ public class CredentialsManager {
             }
             
             Properties props = new Properties();
-            try (FileInputStream fis = new FileInputStream(credentialsFile)) {
+            try (FileInputStream fis = new FileInputStream(credentialsFile)) { // Using try-with-resources for automatic closing and a File Stream
                 props.load(fis);
             }
             

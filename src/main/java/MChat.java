@@ -164,6 +164,21 @@ public class MChat {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
 
+        newChatButton.addActionListener(e -> {
+            // Clear the message receiver and hide the scroll pane
+            scrollPane.setVisible(false);
+            // Create popup Asking for Username of the person to chat with
+            String chatWithUsername = JOptionPane.showInputDialog(
+                frame, // parent component
+                "Bitte gib den Benutzernamen ein:", // message
+                "Neuer Chat", // title
+                JOptionPane.PLAIN_MESSAGE // message type
+            );
+            if (chatWithUsername == "") {
+                JDialog dialog = new JDialog(frame, "Fehler kein Username angegeben", true);
+            }
+        });
+
         // Send on button click
         sendButton.addActionListener(e -> {
             String messageString = messageField.getText();
