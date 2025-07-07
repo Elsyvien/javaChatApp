@@ -8,8 +8,9 @@ package Authentication;
  */
 import model.User;
 import Crypto.RSAKey;
-import java.security.SecureRandom;
 import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 
 public class Authentication {
@@ -44,8 +45,8 @@ public class Authentication {
 
     // Builds the full auth-response message to send back
     public String buildAuthResponse() {
-        BigInteger signature = signChallenge();
-        return "auth-response:" + signature.toString(16) + ":" + user.getUsername();
+        String signatureHex = handleChallenge(currentChallenge);
+        return "auth-response:" + signatureHex + ":" + user.getUsername();
     }
 
     // Verify the signed challenge with the user's public key
@@ -57,5 +58,44 @@ public class Authentication {
 
     public String getCurrentChallenge() {
         return currentChallenge; // Return the current challenge
+    }
+
+    // Handle the challenge by hashing and signing it
+    public String handleChallenge(String challenge) {
+        try {
+            System.out.println("[CLIENT DEBUG] Original challenge: " + challenge);
+            
+            // The challenge is received as a hex string, convert it to bytes first
+            byte[] challengeBytes = hexStringToByteArray(challenge);
+            System.out.println("[CLIENT DEBUG] Challenge bytes length: " + challengeBytes.length);
+            
+            // Hash the challenge bytes
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashedChallenge = digest.digest(challengeBytes);
+            BigInteger hashedChallengeBigInt = new BigInteger(1, hashedChallenge);
+            System.out.println("[CLIENT DEBUG] Hashed challenge: " + hashedChallengeBigInt.toString(16));
+
+            // Sign the hashed challenge with the private key
+            BigInteger signature = user.getKey().sign(hashedChallengeBigInt);
+            System.out.println("[CLIENT DEBUG] Signature: " + signature.toString(16));
+
+            // Return the signature as a hex string
+            return signature.toString(16);
+        } catch (NoSuchAlgorithmException e) {
+            System.err.println("[CLIENT/Auth] SHA-256 algorithm not found: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    // Helper method to convert hex string to byte array
+    private byte[] hexStringToByteArray(String hexString) {
+        int len = hexString.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hexString.charAt(i), 16) << 4)
+                                + Character.digit(hexString.charAt(i+1), 16));
+        }
+        return data;
     }
 }

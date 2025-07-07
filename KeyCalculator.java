@@ -1,0 +1,1 @@
+import java.math.BigInteger; public class KeyCalculator { public static void main(String[] args) { BigInteger p = new BigInteger("F7E75FDC469067FFDC4E847C51F452DF", 16); BigInteger q = new BigInteger("E85CED54AF57E53E092113E62F436F4F", 16); BigInteger n = p.multiply(q); System.out.println("Public Key (n): " + n.toString(16)); } }
