@@ -152,7 +152,7 @@ public class MChat {
                     JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Chats: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
                     return; // Do not proceed
                 }
-                JOptionPane.showMessageDialog(frame, "Neuer Chat mit " + chatWithUsername + " gestartet.", "Neuer Chat", JOptionPane.INFORMATION_MESSAGE);
+                // Success message will be shown when server confirms
             }
         });
 
@@ -190,10 +190,22 @@ public class MChat {
         // Waiting for new Messages
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
+                // Handle system messages (like chat initialization confirmations)
+                if (message.getContent().startsWith("chat-init-success:")) { // Handle successful chat initialization
+                    String confirmedPartner = message.getContent().substring("chat-init-success:".length());
+                    System.out.println("[CLIENT] Chat initialization confirmed for: " + confirmedPartner);
+                    JOptionPane.showMessageDialog(frame, "Chat mit " + confirmedPartner + " erfolgreich gestartet.", "Chat bereit", JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                } else if (message.getContent().startsWith("chat-init-failure:")) { // Handle chat initialization failures
+                    String errorMessage = message.getContent().substring("chat-init-failure:".length());
+                    System.err.println("[CLIENT] Chat initialization failed: " + errorMessage);
+                    JOptionPane.showMessageDialog(frame, "Chat-Start fehlgeschlagen: " + errorMessage, "Fehler", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
                 // Only display the messages from current chat partner or system messages
                 if (message.getSender().equals(currentChatPartner) || 
-                message.getSender().equals("system") ||
-                message.getContent().startsWith("init-chat:")) {
+                message.getSender().equals("system")) {
                 
                 // Show the scroll pane if it was hidden
                 if (!scrollPane.isVisible()) {
