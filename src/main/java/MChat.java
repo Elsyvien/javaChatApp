@@ -121,14 +121,18 @@ public class MChat {
                 "Neuer Chat", // title
                 JOptionPane.PLAIN_MESSAGE // message type
             );
-            if (chatWithUsername == "") {
-                JDialog dialog = new JDialog(frame, "Fehler kein Username angegeben", true);
+            if (chatWithUsername.isEmpty() == true) {
+                JOptionPane.showMessageDialog(frame, "Fehler: kein Username angegeben", "Fehler", JOptionPane.ERROR_MESSAGE);
             }
         });
 
         // Send on button click
         sendButton.addActionListener(e -> {
             String messageString = messageField.getText();
+            if (messageString.isEmpty() == true) {
+                JOptionPane.showMessageDialog(frame, "Fehler: Nachricht ist leer", "Fehler", JOptionPane.ERROR_MESSAGE);
+                return; // Do not send empty messages
+            }
             //sendMessageToServer("Max", message); // Replace "Max" with your actual sender name. Deprecated method
             Message message = new Message(user.getUsername(), messageString);
             chatClient.sendMessage(message); // Send the message using the WebSocket client
