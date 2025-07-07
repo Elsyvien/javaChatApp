@@ -5,6 +5,8 @@ import jakarta.websocket.WebSocketContainer;
 import java.net.URI;
 
 import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 /*
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,8 +20,14 @@ import utils.CredentialsManager;
 import java.util.Properties;
 
 public class MChat {
-
-    public static void main(String[] args) {    
+    /**
+     * Main method to start the chat client application.
+     * It checks for existing user credentials, allows user login or registration,
+     * and sets up the WebSocket connection to the chat server.
+     *
+     * @param args command line arguments (not used)
+     */
+    public static void main(String[] args) {
         // Check if existing credentials exist
         Properties existingCredentials = CredentialsManager.loadCredentials();
         String username;
@@ -119,16 +127,39 @@ public class MChat {
 
         JFrame frame = new JFrame("Chat Client");
         JTextField messageField = new JTextField(30);
-        JButton sendButton = new JButton("Send");
+        JButton sendButton = new JButton("Senden");
         JTextPane messageReceiver = new JTextPane();
+        JButton newChatButton = new JButton("Neuer Chat");
 
-        JPanel panel = new JPanel();
-        panel.add(messageField);
-        panel.add(sendButton);
-        panel.add(messageReceiver);
-        messageReceiver.setEditable(false); // Make the message receiver non-editable
-
-        frame.setContentPane(panel);
+        // Erstelle verschiedene Panels für bessere Anordnung
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        
+        // Panel für die Nachrichteneingabe (unten)
+        JPanel inputPanel = new JPanel(new FlowLayout());
+        inputPanel.add(messageField);
+        inputPanel.add(sendButton);
+        
+        // Panel für den Button (ganz unten)
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.add(newChatButton);
+        
+        // Kombiniere beide untere Panels
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(inputPanel, BorderLayout.CENTER);
+        bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        // Scroll-Panel für die Nachrichten (Mitte)
+        JScrollPane scrollPane = new JScrollPane(messageReceiver);
+        messageReceiver.setEditable(false);
+        
+        // Initial verstecken - wird sichtbar bei der ersten Nachricht
+        scrollPane.setVisible(false);
+        
+        // Alles zusammenfügen
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+        
+        frame.setContentPane(mainPanel);
         frame.pack();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
@@ -145,6 +176,13 @@ public class MChat {
 
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
+                // Zeige das Message Panel bei der ersten Nachricht
+                if (!scrollPane.isVisible()) {
+                    scrollPane.setVisible(true);
+                    frame.revalidate(); // Layout neu berechnen
+                    frame.repaint();    // Fenster neu zeichnen
+                }
+                
                 String currentText = messageReceiver.getText();
                 if (currentText == null || currentText.trim().isEmpty()) {
                     currentText = "";
