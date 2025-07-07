@@ -59,6 +59,10 @@ public class Authentication {
     public String getCurrentChallenge() {
         return currentChallenge; // Return the current challenge
     }
+    
+    public User getUser() {
+        return user; // Return the user object
+    }
 
     // Handle the challenge by hashing and signing it
     public String handleChallenge(String challenge) {

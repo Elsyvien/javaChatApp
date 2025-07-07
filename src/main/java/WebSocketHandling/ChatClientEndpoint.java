@@ -48,6 +48,12 @@ public class ChatClientEndpoint {
     public ChatClientEndpoint(Authentication authentication) {
         this.authentication = authentication;
     }
+    
+    // Constructor for backward compatibility
+    public ChatClientEndpoint(Authentication authentication, boolean isNewUser) {
+        this.authentication = authentication;
+        // isNewUser is ignored since registration happens in LoginDialog
+    }
 
     public void setMessageListener(MessageListener listener) {
         this.listener = listener;
@@ -58,11 +64,13 @@ public class ChatClientEndpoint {
         this.userSession = userSession; // Store the session for later use
         System.out.println("[CLIENT] Connected to server: " + userSession.getBasicRemote());
         try {
-            userSession.getBasicRemote().sendText("auth-request"); // Send an initial message to the server
+            // All users (new and existing) need to authenticate
+            // Registration happens in LoginDialog, so here we only authenticate
+            userSession.getBasicRemote().sendText("auth-request");
             System.out.println("[CLIENT] Sent auth-request to server. " + userSession.getId());
         } catch (Exception e) {
-            System.err.println("[CLIENT] Error sending auth-request: " + e.getMessage());
-            throw new RuntimeException("Failed to send auth-request", e);
+            System.err.println("[CLIENT] Error sending request: " + e.getMessage());
+            throw new RuntimeException("Failed to send request", e);
         }
     }
 
