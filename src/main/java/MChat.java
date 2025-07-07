@@ -20,6 +20,9 @@ import utils.CredentialsManager;
 import java.util.Properties;
 
 public class MChat {
+    // Stores the current chat partner's username
+    private static String currentChatPartner = "";
+
     /**
      * Main method to start the chat client application.
      * It checks for existing user credentials, allows user login or registration,
@@ -28,6 +31,7 @@ public class MChat {
      * @param args command line arguments (not used)
      */
     public static void main(String[] args) {
+
         // Always show login dialog (supports login and registration)
         LoginDialog loginDialog = new LoginDialog(null);
         String username = loginDialog.showDialog();
@@ -122,7 +126,33 @@ public class MChat {
                 JOptionPane.PLAIN_MESSAGE // message type
             );
             if (chatWithUsername.isEmpty() == true) {
+                System.out.println("[CLIENT] No username provided for new chat.");
                 JOptionPane.showMessageDialog(frame, "Fehler: kein Username angegeben", "Fehler", JOptionPane.ERROR_MESSAGE);
+            } else {
+                System.out.println("[CLIENT] Starting new chat with: " + chatWithUsername);
+                MChat.currentChatPartner = chatWithUsername.trim(); 
+                // Set Current Chat Partner
+                currentChatPartner = chatWithUsername.trim(); 
+                messageReceiver.setText("");
+                
+                frame.setTitle("Chat Client - Chat mit" + currentChatPartner);
+
+                // Make ScrollPane visible again
+                scrollPane.setVisible(true);
+                frame.revalidate(); // Layout neu berechnen
+                frame.repaint();    // Fenster neu zeichnen
+
+                // Notify Server about the new Chat and context Switch
+                try {
+                    Message chatInitMessage = new Message(user.getUsername(), "init-chat:" + currentChatPartner);
+                    System.out.println("[CLIENT] Sending chat initialization message: " + chatInitMessage);
+                    chatClient.sendMessage(chatInitMessage); 
+                } catch (Exception ex) {
+                    System.err.println("[CLIENT] Error sending chat initialization message: " + ex.getMessage());
+                    JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Chats: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
+                    return; // Do not proceed
+                }
+                JOptionPane.showMessageDialog(frame, "Neuer Chat mit " + chatWithUsername + " gestartet.", "Neuer Chat", JOptionPane.INFORMATION_MESSAGE);
             }
         });
 
@@ -133,29 +163,67 @@ public class MChat {
                 JOptionPane.showMessageDialog(frame, "Fehler: Nachricht ist leer", "Fehler", JOptionPane.ERROR_MESSAGE);
                 return; // Do not send empty messages
             }
-            //sendMessageToServer("Max", message); // Replace "Max" with your actual sender name. Deprecated method
-            Message message = new Message(user.getUsername(), messageString);
+            if (currentChatPartner.isEmpty()) {
+                System.err.println("[CLIENT] No chat partner selected, cannot send message!");
+                JOptionPane.showMessageDialog(frame, "Fehler: Kein Chatpartner ausgewählt", "Fehler", JOptionPane.ERROR_MESSAGE);
+                return; // Do not send messages without a chat partner
+            }
+            // Message message = new Message(user.getUsername(), messageString); deprecated after direct messaging capabilities were added
+            Message message = new Message(user.getUsername(), messageString, currentChatPartner);
             chatClient.sendMessage(message); // Send the message using the WebSocket client
             messageField.setText("");
+
+            // Display the sent message in the message receiver
+            SwingUtilities.invokeLater(() -> {
+            String currentText = messageReceiver.getText();
+            if (currentText == null || currentText.trim().isEmpty()) {
+                currentText = "";
+            }
+            String newText = currentText + "Du: " + messageString + "\n";
+            messageReceiver.setText(newText);
+            
+            // Auto-scroll to bottom
+            messageReceiver.setCaretPosition(messageReceiver.getDocument().getLength());
+        });
         });
 
         // Waiting for new Messages
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
-                // Zeige das Message Panel bei der ersten Nachricht
+                // Only display the messages from current chat partner or system messages
+                if (message.getSender().equals(currentChatPartner) || 
+                message.getSender().equals("system") ||
+                message.getContent().startsWith("init-chat:")) {
+                
+                // Show the scroll pane if it was hidden
                 if (!scrollPane.isVisible()) {
                     scrollPane.setVisible(true);
-                    frame.revalidate(); // Layout neu berechnen
-                    frame.repaint();    // Fenster neu zeichnen
+                    frame.revalidate();
+                    frame.repaint();
                 }
                 
+                // Get the current text from the message receiver
                 String currentText = messageReceiver.getText();
                 if (currentText == null || currentText.trim().isEmpty()) {
                     currentText = "";
                 }
-                String newText = currentText + message.getSender() + ": " + message.getContent() + "\n";
-                System.out.println("Received message: " + newText);
+                
+                // Format the message for display
+                String displayMessage;
+                if (message.getSender().equals("system")) {
+                    displayMessage = "[System]: " + message.getContent() + "\n";
+                } else {
+                    displayMessage = message.getSender() + ": " + message.getContent() + "\n";
+                }
+                
+                // Append the new message to the current text
+                String newText = currentText + displayMessage;
+                System.out.println("[MESSAGE HANDLING] Received message: " + displayMessage.trim());
                 messageReceiver.setText(newText);
+                
+                // Auto-scroll to bottom
+                messageReceiver.setCaretPosition(messageReceiver.getDocument().getLength());
+            }
             });
         });
 
