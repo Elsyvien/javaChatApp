@@ -227,7 +227,7 @@ public class LoginDialog extends JDialog {
 
     private boolean checkCredentials(String username, String password) throws IOException {
         List<String> lines = fileOps.readAllLines(USER_FILE);
-        for (String line : lines) { // Binary Seach 
+        for (String line : lines) { // Linear search
             String[] parts = line.split(":", 2);
             if (parts.length == 2 && parts[0].equals(username) && parts[1].equals(password)) {
                 return true;
