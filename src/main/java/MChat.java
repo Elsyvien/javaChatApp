@@ -5,6 +5,8 @@ import jakarta.websocket.WebSocketContainer;
 import java.net.URI;
 
 import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 /*
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,82 +20,39 @@ import utils.CredentialsManager;
 import java.util.Properties;
 
 public class MChat {
+    // Stores the current chat partner's username
+    private static String currentChatPartner = "";
 
-    public static void main(String[] args) {    
-        // Check if existing credentials exist
-        Properties existingCredentials = CredentialsManager.loadCredentials();
-        String username;
-        User user;
-        boolean isNewUser = false;
-        
-        if (existingCredentials != null) {
-            // User already exists, use existing credentials
-            username = existingCredentials.getProperty("username");
-            System.out.println("[CLIENT] Found existing user: " + username);
-            
-            // Ask if user wants to use existing credentials or create new ones
-            int choice = JOptionPane.showConfirmDialog(
-                null, 
-                "Found existing user: " + username + "\nUse existing credentials?", 
-                "Existing User Found", 
-                JOptionPane.YES_NO_OPTION
-            );
-            
-            if (choice == JOptionPane.YES_OPTION) {
-                // Use existing credentials - this is a login, not a new registration
-                user = new User(username, true, existingCredentials);
-                System.out.println("[CLIENT] Using existing credentials for: " + username);
-                isNewUser = false; // Existing user, will authenticate
-            } else {
-                // User wants to create new account - delete old credentials first
-                CredentialsManager.deleteCredentials();
-                
-                // Create new user
-                LoginDialog loginDialog = new LoginDialog(null);
-                username = loginDialog.showDialog();
-                
-                if (username == null) {
-                    System.err.println("[CLIENT] No username provided, exiting.");
-                    JOptionPane.showMessageDialog(null, "No username provided, exiting.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-                
-                // Check if this is a newly registered user (has credentials)
-                // If LoginDialog returned successfully, the user is already registered
-                Properties newCredentials = CredentialsManager.loadCredentials();
-                if (newCredentials != null && newCredentials.getProperty("username").equals(username)) {
-                    // User was registered successfully, load their credentials
-                    user = new User(username, true, newCredentials);
-                    isNewUser = false; // User is registered, will authenticate
-                } else {
-                    System.err.println("[CLIENT] Registration may have failed, exiting.");
-                    JOptionPane.showMessageDialog(null, "Registration failed, please try again.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-            }
-        } else {
-            // No existing credentials, show login dialog
-            LoginDialog loginDialog = new LoginDialog(null);
-            username = loginDialog.showDialog();
-            
-            if (username == null) {
-                System.err.println("[CLIENT] No username provided, exiting.");
-                JOptionPane.showMessageDialog(null, "No username provided, exiting.", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            // Check if user was registered or logged in
-            Properties credentials = CredentialsManager.loadCredentials();
-            if (credentials != null && credentials.getProperty("username").equals(username)) {
-                // User logged in or was just registered
-                user = new User(username, true, credentials);
-                isNewUser = false; // Will authenticate with server
-            } else {
-                System.err.println("[CLIENT] No valid credentials found, exiting.");
-                JOptionPane.showMessageDialog(null, "Login failed, please try again.", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
+    /**
+     * Main method to start the chat client application.
+     * It checks for existing user credentials, allows user login or registration,
+     * and sets up the WebSocket connection to the chat server.
+     *
+     * @param args command line arguments (not used)
+     */
+    public static void main(String[] args) {
+
+        // Always show login dialog (supports login and registration)
+        LoginDialog loginDialog = new LoginDialog(null);
+        String username = loginDialog.showDialog();
+        if (username == null) {
+            System.err.println("[CLIENT] No username provided, exiting.");
+            JOptionPane.showMessageDialog(null, "No username provided, exiting.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+
+        // Load RSA credentials for this user if they exist
+        Properties userCredentials = CredentialsManager.loadCredentials(username);
+        User user;
+        if (userCredentials != null) {
+            System.out.println("[CLIENT] Loaded credentials for user: " + username);
+            user = new User(username, true, userCredentials);
+        } else {
+            System.out.println("[CLIENT] No credentials found for user: " + username + " - generating new keys.");
+            user = new User(username); // generates and saves new credentials
+        }
+
+        boolean isNewUser = false; // kept for compatibility, ChatClientEndpoint ignores this
         
         JOptionPane.showMessageDialog(null, "Welcome " + username + "!", "Login Successful", JOptionPane.INFORMATION_MESSAGE);
         System.out.println("[CLIENT] Username: " + username);
@@ -119,39 +78,164 @@ public class MChat {
 
         JFrame frame = new JFrame("Chat Client");
         JTextField messageField = new JTextField(30);
-        JButton sendButton = new JButton("Send");
+        JButton sendButton = new JButton("Senden");
         JTextPane messageReceiver = new JTextPane();
+        JButton newChatButton = new JButton("Neuer Chat");
 
-        JPanel panel = new JPanel();
-        panel.add(messageField);
-        panel.add(sendButton);
-        panel.add(messageReceiver);
-        messageReceiver.setEditable(false); // Make the message receiver non-editable
-
-        frame.setContentPane(panel);
+        // Erstelle verschiedene Panels für bessere Anordnung
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        
+        // Panel für die Nachrichteneingabe (unten)
+        JPanel inputPanel = new JPanel(new FlowLayout());
+        inputPanel.add(messageField);
+        inputPanel.add(sendButton);
+        
+        // Panel für den Button (ganz unten)
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.add(newChatButton);
+        
+        // Kombiniere beide untere Panels
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(inputPanel, BorderLayout.CENTER);
+        bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        // Scroll-Panel für die Nachrichten (Mitte)
+        JScrollPane scrollPane = new JScrollPane(messageReceiver);
+        messageReceiver.setEditable(false);
+        
+        // Initial verstecken - wird sichtbar bei der ersten Nachricht
+        scrollPane.setVisible(true);
+        
+        // Alles zusammenfügen
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+        
+        frame.setContentPane(mainPanel);
         frame.pack();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
 
+        newChatButton.addActionListener(e -> {
+            // Clear the message receiver and hide the scroll pane
+            scrollPane.setVisible(false);
+            // Create popup Asking for Username of the person to chat with
+            String chatWithUsername = JOptionPane.showInputDialog(
+                frame, // parent component
+                "Bitte gib den Benutzernamen ein:", // message
+                "Neuer Chat", // title
+                JOptionPane.PLAIN_MESSAGE // message type
+            );
+            if (chatWithUsername.isEmpty() == true) {
+                System.out.println("[CLIENT] No username provided for new chat.");
+                JOptionPane.showMessageDialog(frame, "Fehler: kein Username angegeben", "Fehler", JOptionPane.ERROR_MESSAGE);
+            } else {
+                System.out.println("[CLIENT] Starting new chat with: " + chatWithUsername);
+                MChat.currentChatPartner = chatWithUsername.trim(); 
+                // Set Current Chat Partner
+                currentChatPartner = chatWithUsername.trim(); 
+                messageReceiver.setText("");
+                
+                frame.setTitle("Chat Client - Chat mit" + currentChatPartner);
+
+                // Make ScrollPane visible again
+                scrollPane.setVisible(true);
+                frame.revalidate(); // Layout neu berechnen
+                frame.repaint();    // Fenster neu zeichnen
+
+                // Notify Server about the new Chat and context Switch
+                try {
+                    Message chatInitMessage = new Message(user.getUsername(), "init-chat:" + currentChatPartner);
+                    System.out.println("[CLIENT] Sending chat initialization message: " + chatInitMessage);
+                    chatClient.sendMessage(chatInitMessage); 
+                } catch (Exception ex) {
+                    System.err.println("[CLIENT] Error sending chat initialization message: " + ex.getMessage());
+                    JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Chats: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
+                    return; // Do not proceed
+                }
+                // Success message will be shown when server confirms
+            }
+        });
+
         // Send on button click
         sendButton.addActionListener(e -> {
             String messageString = messageField.getText();
-            //sendMessageToServer("Max", message); // Replace "Max" with your actual sender name. Deprecated method
-            Message message = new Message(user.getUsername(), messageString);
+            if (messageString.isEmpty() == true) {
+                JOptionPane.showMessageDialog(frame, "Fehler: Nachricht ist leer", "Fehler", JOptionPane.ERROR_MESSAGE);
+                return; // Do not send empty messages
+            }
+            if (currentChatPartner.isEmpty()) {
+                System.err.println("[CLIENT] No chat partner selected, cannot send message!");
+                JOptionPane.showMessageDialog(frame, "Fehler: Kein Chatpartner ausgewählt", "Fehler", JOptionPane.ERROR_MESSAGE);
+                return; // Do not send messages without a chat partner
+            }
+            // Message message = new Message(user.getUsername(), messageString); deprecated after direct messaging capabilities were added
+            Message message = new Message(user.getUsername(), messageString, currentChatPartner);
             chatClient.sendMessage(message); // Send the message using the WebSocket client
             messageField.setText("");
+
+            // Display the sent message in the message receiver
+            SwingUtilities.invokeLater(() -> {
+            String currentText = messageReceiver.getText();
+            if (currentText == null || currentText.trim().isEmpty()) {
+                currentText = "";
+            }
+            String newText = currentText + "Du: " + messageString + "\n";
+            messageReceiver.setText(newText);
+            
+            // Auto-scroll to bottom
+            messageReceiver.setCaretPosition(messageReceiver.getDocument().getLength());
+        });
         });
 
-
+        // Waiting for new Messages
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
+                // Handle system messages (like chat initialization confirmations)
+                if (message.getContent().startsWith("chat-init-success:")) { // Handle successful chat initialization
+                    String confirmedPartner = message.getContent().substring("chat-init-success:".length());
+                    System.out.println("[CLIENT] Chat initialization confirmed for: " + confirmedPartner);
+                    JOptionPane.showMessageDialog(frame, "Chat mit " + confirmedPartner + " erfolgreich gestartet.", "Chat bereit", JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                } else if (message.getContent().startsWith("chat-init-failure:")) { // Handle chat initialization failures
+                    String errorMessage = message.getContent().substring("chat-init-failure:".length());
+                    System.err.println("[CLIENT] Chat initialization failed: " + errorMessage);
+                    JOptionPane.showMessageDialog(frame, "Chat-Start fehlgeschlagen: " + errorMessage, "Fehler", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                // Only display the messages from current chat partner or system messages
+                if (message.getSender().equals(currentChatPartner) || 
+                message.getSender().equals("system")) {
+                
+                // Show the scroll pane if it was hidden
+                if (!scrollPane.isVisible()) {
+                    scrollPane.setVisible(true);
+                    frame.revalidate();
+                    frame.repaint();
+                }
+                
+                // Get the current text from the message receiver
                 String currentText = messageReceiver.getText();
                 if (currentText == null || currentText.trim().isEmpty()) {
                     currentText = "";
                 }
-                String newText = currentText + message.getSender() + ": " + message.getContent() + "\n";
-                System.out.println("Received message: " + newText);
+                
+                // Format the message for display
+                String displayMessage;
+                if (message.getSender().equals("system")) {
+                    displayMessage = "[System]: " + message.getContent() + "\n";
+                } else {
+                    displayMessage = message.getSender() + ": " + message.getContent() + "\n";
+                }
+                
+                // Append the new message to the current text
+                String newText = currentText + displayMessage;
+                System.out.println("[MESSAGE HANDLING] Received message: " + displayMessage.trim());
                 messageReceiver.setText(newText);
+                
+                // Auto-scroll to bottom
+                messageReceiver.setCaretPosition(messageReceiver.getDocument().getLength());
+            }
             });
         });
 

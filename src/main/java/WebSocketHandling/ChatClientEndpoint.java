@@ -88,23 +88,46 @@ public class ChatClientEndpoint {
             } else if (messageJson.equals("auth-failure")) { // Check if the authentication failed
                 System.out.println("[CLIENT] Auth failed!" + "\n" + "[CLIENT] Please check your credentials and try again.");
                 userSession.close(); // Close the session if authentication fails
+            } else if (messageJson.startsWith("chat-init-success:")) {
+                System.out.println("[CLIENT] Chat initialization successful");
+                String initData = messageJson.substring("chat-init-success:".length());
+                System.out.println("[CLIENT] Chat partner confirmed: " + initData);
+                
+                // Notify listener about successful chat initialization
+                if (listener != null) {
+                    // Create a system message to notify the UI
+                    Message systemMessage = new Message("system", messageJson);
+                    listener.onNewMessage(systemMessage);
+                }
+            } else if (messageJson.startsWith("chat-init-failure:")) {
+                System.err.println("[CLIENT] Chat initialization failed: " + messageJson);
+                
+                // Notify listener about failed chat initialization  
+                if (listener != null) {
+                    // Create a system message to notify the UI
+                    Message systemMessage = new Message("system", messageJson);
+                    listener.onNewMessage(systemMessage);
+                }
+                return;
             } else { // Handle regular chat messages
                 System.out.println("[CLIENT] RAW JSON: " + messageJson);
                 Message message = jsonb.fromJson(messageJson, Message.class);
                 System.out.println("[CLIENT] Parsed: sender=" + message.getSender() + ", content=" + message.getContent());
 
-                // Speichern für getLastMessage()
+                // Save for later retrieval
                 this.lastMessage = message;
 
-                //In den Ringpuffer schreiben
+                // Write to message buffer 
                 this.messageBuffer[this.bufferIndex] = message;
                 this.bufferIndex = (this.bufferIndex + 1) % this.messageBuffer.length;
 
-                // Listener benachrichtigen
+                // Alert Listener about new message
                 if (listener != null) {
                     listener.onNewMessage(message);
                 }
             }
+            
+
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -7,6 +7,8 @@ public class Message {
     private String sender;
     @JsonbProperty("content")
     private String content;
+    @JsonbProperty("recipient")
+    private String recipient; 
     @JsonbProperty("timestamp")
     private long timestamp;
 
@@ -26,6 +28,13 @@ public class Message {
         this.content = content;
     }
 
+    public Message(String sender, String content, String recipient) {
+        this.sender = sender;
+        this.content = content;
+        this.recipient = recipient;
+        this.timestamp = System.currentTimeMillis();
+    }
+
     public String getSender() {
         return sender;
     }
@@ -38,6 +47,13 @@ public class Message {
     }
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getRecipient() {
+        return recipient;
+    }
+    public void setRecipient(String recipient) {
+        this.recipient = recipient;
     }
 
     public long getTimestamp() {
@@ -53,6 +69,7 @@ public class Message {
                 "sender='" + sender + '\'' +
                 ", content='" + content + '\'' +
                 ", timestamp=" + timestamp +
+                (recipient != null ? ", recipient='" + recipient + '\'' : "") +
                 '}';
     }
 }
