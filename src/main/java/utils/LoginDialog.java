@@ -81,6 +81,9 @@ public class LoginDialog extends JDialog {
             return;
         }
         try {
+            // Ensure the user data directory exists
+            fileOps.ensureDirectoryExists(USER_FILE);
+            
             if (checkCredentials(username, password)) {
                 loggedInUser = username;
                 System.out.println("[CLIENT] User crendentials have been found...proceeding");
@@ -105,6 +108,9 @@ public class LoginDialog extends JDialog {
             return;
         }
         try {
+            // Ensure the user data directory exists before writing
+            fileOps.ensureDirectoryExists(USER_FILE);
+            
             fileOps.appendLine(USER_FILE, username + ":" + password);
             System.out.println("[CLIENT] User registered: " + username);
             JOptionPane.showMessageDialog(this, "Registration successful", "Success", JOptionPane.INFORMATION_MESSAGE);

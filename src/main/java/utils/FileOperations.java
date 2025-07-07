@@ -28,13 +28,37 @@ public class FileOperations {
 
     /**
      * Appends a single line to the given file using UTF-8 encoding.
-     * The file is created if it does not already exist.
+     * The file and its parent directories are created if they do not already exist.
      */
     public void appendLine(String filePath, String line) throws IOException {
         Path path = Path.of(filePath);
+        // Create parent directories if they don't exist
+        Path parentDir = path.getParent();
+        if (parentDir != null && !Files.exists(parentDir)) {
+            Files.createDirectories(parentDir);
+        }
         Files.write(path,
                 (line + System.lineSeparator()).getBytes(StandardCharsets.UTF_8),
                 StandardOpenOption.CREATE,
                 StandardOpenOption.APPEND);
+    }
+
+    /**
+     * Ensures that the parent directory of the given file path exists.
+     * Creates the directory structure if it doesn't exist.
+     */
+    public void ensureDirectoryExists(String filePath) throws IOException {
+        Path path = Path.of(filePath);
+        Path parentDir = path.getParent();
+        if (parentDir != null && !Files.exists(parentDir)) {
+            Files.createDirectories(parentDir);
+        }
+    }
+
+    /**
+     * Checks if a file exists at the given path.
+     */
+    public boolean fileExists(String filePath) {
+        return Files.exists(Path.of(filePath));
     }
 }

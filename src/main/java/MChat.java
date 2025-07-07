@@ -30,7 +30,7 @@ public class MChat {
         System.out.println("[CLIENT] Username provided: " + username);
 
         User user = new User(username);
-        System.out.println("[CLIENT] User created: " + user.getUsername() + "Continueing with chat client setup...");
+        System.out.println("[CLIENT] User created: " + user.getUsername() + "Continuing with chat client setup...");
         Authentication authentication = new Authentication(user);
         // Only one ChatClientEndpoint, constructed with authentication
         ChatClientEndpoint chatClient = new ChatClientEndpoint(authentication);
