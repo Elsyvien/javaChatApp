@@ -100,7 +100,7 @@ public class MChat {
         messageReceiver.setEditable(false);
         
         // Initial verstecken - wird sichtbar bei der ersten Nachricht
-        scrollPane.setVisible(false);
+        scrollPane.setVisible(true);
         
         // Alles zusammenfügen
         mainPanel.add(scrollPane, BorderLayout.CENTER);
@@ -135,7 +135,7 @@ public class MChat {
             messageField.setText("");
         });
 
-
+        // Waiting for new Messages
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
                 // Zeige das Message Panel bei der ersten Nachricht
