@@ -45,3 +45,4 @@ qodana.yaml
 users.txt
 *.class
 UserData/credentials.properties
+*.class
