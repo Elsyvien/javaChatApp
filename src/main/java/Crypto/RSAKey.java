@@ -43,13 +43,13 @@ public class RSAKey {
         d = e.modInverse(phi);
     }
 
-    public BigInteger sign(BigInteger hash) { 
-        return hash.modPow(d, n); // Sign the hash using the private key (n, d)
+    public BigInteger sign(BigInteger message) {
+        return message.modPow(d, n);
     }
 
-    public boolean verify(BigInteger hash, BigInteger signature) {
+    public boolean verify(BigInteger message, BigInteger signature) {
         BigInteger computedHash = signature.modPow(e, n); // Verify the signature using the public key (n, e)
-        return computedHash.equals(hash); // Check if the computed hash matches the original hash
+        return computedHash.equals(message); // Check if the computed hash matches the original hash
     }
     
     public BigInteger getN() {
