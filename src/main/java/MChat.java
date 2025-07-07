@@ -7,6 +7,8 @@ import java.net.URI;
 import javax.swing.*;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.util.HashMap;
+import java.util.Map;
 /*
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -22,6 +24,10 @@ import java.util.Properties;
 public class MChat {
     // Stores the current chat partner's username
     private static String currentChatPartner = "";
+    
+    // Chat management
+    private static Map<String, JTextPane> chatTabs = new HashMap<>();
+    private static JTabbedPane tabbedPane;
 
     /**
      * Main method to start the chat client application.
@@ -76,11 +82,20 @@ public class MChat {
             return;
         }
 
-        JFrame frame = new JFrame("Chat Client");
+        JFrame frame = new JFrame("Chat Client - Mehrere Chats");
         JTextField messageField = new JTextField(30);
         JButton sendButton = new JButton("Senden");
-        JTextPane messageReceiver = new JTextPane();
         JButton newChatButton = new JButton("Neuer Chat");
+        
+        // Create tabbed pane for multiple chats
+        tabbedPane = new JTabbedPane();
+        
+        // Add welcome tab
+        JTextPane welcomePane = new JTextPane();
+        welcomePane.setEditable(false);
+        welcomePane.setText("Willkommen " + username + "!\n\nKlicke auf 'Neuer Chat' um ein Gespräch zu beginnen.");
+        JScrollPane welcomeScroll = new JScrollPane(welcomePane);
+        tabbedPane.addTab("Willkommen", welcomeScroll);
 
         // Erstelle verschiedene Panels für bessere Anordnung
         JPanel mainPanel = new JPanel(new BorderLayout());
@@ -99,146 +114,227 @@ public class MChat {
         bottomPanel.add(inputPanel, BorderLayout.CENTER);
         bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
         
-        // Scroll-Panel für die Nachrichten (Mitte)
-        JScrollPane scrollPane = new JScrollPane(messageReceiver);
-        messageReceiver.setEditable(false);
-        
-        // Initial verstecken - wird sichtbar bei der ersten Nachricht
-        scrollPane.setVisible(true);
-        
         // Alles zusammenfügen
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(tabbedPane, BorderLayout.CENTER);
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
         
         frame.setContentPane(mainPanel);
         frame.pack();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
+        
+        // Add right-click close functionality to tabs
+        addTabCloseFeature();
 
         newChatButton.addActionListener(e -> {
-            // Clear the message receiver and hide the scroll pane
-            scrollPane.setVisible(false);
-            // Create popup Asking for Username of the person to chat with
+            // Create popup asking for username of the person to chat with
             String chatWithUsername = JOptionPane.showInputDialog(
                 frame, // parent component
                 "Bitte gib den Benutzernamen ein:", // message
                 "Neuer Chat", // title
                 JOptionPane.PLAIN_MESSAGE // message type
             );
-            if (chatWithUsername.isEmpty() == true) {
+            
+            if (chatWithUsername == null || chatWithUsername.trim().isEmpty()) {
                 System.out.println("[CLIENT] No username provided for new chat.");
                 JOptionPane.showMessageDialog(frame, "Fehler: kein Username angegeben", "Fehler", JOptionPane.ERROR_MESSAGE);
-            } else {
-                System.out.println("[CLIENT] Starting new chat with: " + chatWithUsername);
-                MChat.currentChatPartner = chatWithUsername.trim(); 
-                // Set Current Chat Partner
-                currentChatPartner = chatWithUsername.trim(); 
-                messageReceiver.setText("");
-                
-                frame.setTitle("Chat Client - Chat mit" + currentChatPartner);
-
-                // Make ScrollPane visible again
-                scrollPane.setVisible(true);
-                frame.revalidate(); // Layout neu berechnen
-                frame.repaint();    // Fenster neu zeichnen
-
-                // Notify Server about the new Chat and context Switch
-                try {
-                    Message chatInitMessage = new Message(user.getUsername(), "init-chat:" + currentChatPartner);
-                    System.out.println("[CLIENT] Sending chat initialization message: " + chatInitMessage);
-                    chatClient.sendMessage(chatInitMessage); 
-                } catch (Exception ex) {
-                    System.err.println("[CLIENT] Error sending chat initialization message: " + ex.getMessage());
-                    JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Chats: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
-                    return; // Do not proceed
+                return;
+            }
+            
+            String chatPartner = chatWithUsername.trim();
+            
+            // Check if tab already exists
+            if (chatTabs.containsKey(chatPartner)) {
+                // Switch to existing tab
+                for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                    if (tabbedPane.getTitleAt(i).equals(chatPartner)) {
+                        tabbedPane.setSelectedIndex(i);
+                        currentChatPartner = chatPartner;
+                        frame.setTitle("Chat Client - Chat mit " + currentChatPartner);
+                        break;
+                    }
                 }
-                // Success message will be shown when server confirms
+                return;
+            }
+            
+            System.out.println("[CLIENT] Starting new chat with: " + chatPartner);
+            
+            // Create new chat tab
+            JTextPane chatPane = new JTextPane();
+            chatPane.setEditable(false);
+            JScrollPane chatScroll = new JScrollPane(chatPane);
+            
+            // Add to tab management
+            chatTabs.put(chatPartner, chatPane);
+            tabbedPane.addTab(chatPartner, chatScroll);
+            
+            // Switch to new tab
+            tabbedPane.setSelectedIndex(tabbedPane.getTabCount() - 1);
+            currentChatPartner = chatPartner;
+            frame.setTitle("Chat Client - Chat mit " + currentChatPartner);
+
+            // Notify Server about the new Chat
+            try {
+                Message chatInitMessage = new Message(user.getUsername(), "init-chat:" + currentChatPartner);
+                System.out.println("[CLIENT] Sending chat initialization message: " + chatInitMessage);
+                chatClient.sendMessage(chatInitMessage); 
+            } catch (Exception ex) {
+                System.err.println("[CLIENT] Error sending chat initialization message: " + ex.getMessage());
+                JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Chats: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        });
+
+        
+        // Add tab change listener to update current chat partner
+        tabbedPane.addChangeListener(e -> {
+            int selectedIndex = tabbedPane.getSelectedIndex();
+            if (selectedIndex > 0) { // Skip welcome tab (index 0)
+                String tabTitle = tabbedPane.getTitleAt(selectedIndex);
+                // Remove new message indicator (*)
+                if (tabTitle.endsWith(" *")) {
+                    tabTitle = tabTitle.substring(0, tabTitle.length() - 2);
+                    tabbedPane.setTitleAt(selectedIndex, tabTitle);
+                }
+                currentChatPartner = tabTitle;
+                frame.setTitle("Chat Client - Chat mit " + currentChatPartner);
+            } else {
+                currentChatPartner = "";
+                frame.setTitle("Chat Client - Mehrere Chats");
             }
         });
 
         // Send on button click
         sendButton.addActionListener(e -> {
             String messageString = messageField.getText();
-            if (messageString.isEmpty() == true) {
+            if (messageString.isEmpty()) {
                 JOptionPane.showMessageDialog(frame, "Fehler: Nachricht ist leer", "Fehler", JOptionPane.ERROR_MESSAGE);
-                return; // Do not send empty messages
+                return;
             }
             if (currentChatPartner.isEmpty()) {
                 System.err.println("[CLIENT] No chat partner selected, cannot send message!");
                 JOptionPane.showMessageDialog(frame, "Fehler: Kein Chatpartner ausgewählt", "Fehler", JOptionPane.ERROR_MESSAGE);
-                return; // Do not send messages without a chat partner
+                return;
             }
-            // Message message = new Message(user.getUsername(), messageString); deprecated after direct messaging capabilities were added
+            
             Message message = new Message(user.getUsername(), messageString, currentChatPartner);
-            chatClient.sendMessage(message); // Send the message using the WebSocket client
+            chatClient.sendMessage(message);
             messageField.setText("");
 
-            // Display the sent message in the message receiver
+            // Display the sent message in the current chat tab
             SwingUtilities.invokeLater(() -> {
-            String currentText = messageReceiver.getText();
-            if (currentText == null || currentText.trim().isEmpty()) {
-                currentText = "";
-            }
-            String newText = currentText + "Du: " + messageString + "\n";
-            messageReceiver.setText(newText);
-            
-            // Auto-scroll to bottom
-            messageReceiver.setCaretPosition(messageReceiver.getDocument().getLength());
-        });
+                JTextPane currentChatPane = chatTabs.get(currentChatPartner);
+                if (currentChatPane != null) {
+                    String currentText = currentChatPane.getText();
+                    if (currentText == null || currentText.trim().isEmpty()) {
+                        currentText = "";
+                    }
+                    String newText = currentText + "Du: " + messageString + "\n";
+                    currentChatPane.setText(newText);
+                    
+                    // Auto-scroll to bottom
+                    currentChatPane.setCaretPosition(currentChatPane.getDocument().getLength());
+                }
+            });
         });
 
         // Waiting for new Messages
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
                 // Handle system messages (like chat initialization confirmations)
-                if (message.getContent().startsWith("chat-init-success:")) { // Handle successful chat initialization
+                if (message.getContent().startsWith("chat-init-success:")) {
                     String confirmedPartner = message.getContent().substring("chat-init-success:".length());
                     System.out.println("[CLIENT] Chat initialization confirmed for: " + confirmedPartner);
                     JOptionPane.showMessageDialog(frame, "Chat mit " + confirmedPartner + " erfolgreich gestartet.", "Chat bereit", JOptionPane.INFORMATION_MESSAGE);
                     return;
-                } else if (message.getContent().startsWith("chat-init-failure:")) { // Handle chat initialization failures
+                } else if (message.getContent().startsWith("chat-init-failure:")) {
                     String errorMessage = message.getContent().substring("chat-init-failure:".length());
                     System.err.println("[CLIENT] Chat initialization failed: " + errorMessage);
                     JOptionPane.showMessageDialog(frame, "Chat-Start fehlgeschlagen: " + errorMessage, "Fehler", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
                 
-                // Only display the messages from current chat partner or system messages
-                if (message.getSender().equals(currentChatPartner) || 
-                message.getSender().equals("system")) {
-                
-                // Show the scroll pane if it was hidden
-                if (!scrollPane.isVisible()) {
-                    scrollPane.setVisible(true);
-                    frame.revalidate();
-                    frame.repaint();
+                // Handle regular chat messages
+                String sender = message.getSender();
+                if (!sender.equals("system")) {
+                    // Get or create chat tab for this sender
+                    JTextPane chatPane = chatTabs.get(sender);
+                    if (chatPane == null) {
+                        // Create new tab for unknown sender
+                        chatPane = new JTextPane();
+                        chatPane.setEditable(false);
+                        JScrollPane chatScroll = new JScrollPane(chatPane);
+                        
+                        chatTabs.put(sender, chatPane);
+                        tabbedPane.addTab(sender, chatScroll);
+                        
+                        // Show notification for new chat
+                        JOptionPane.showMessageDialog(frame, "Neue Nachricht von " + sender, "Neue Nachricht", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    
+                    // Add message to the appropriate chat tab
+                    String currentText = chatPane.getText();
+                    if (currentText == null || currentText.trim().isEmpty()) {
+                        currentText = "";
+                    }
+                    
+                    String displayMessage = sender + ": " + message.getContent() + "\n";
+                    String newText = currentText + displayMessage;
+                    System.out.println("[MESSAGE HANDLING] Received message: " + displayMessage.trim());
+                    chatPane.setText(newText);
+                    
+                    // Auto-scroll to bottom
+                    chatPane.setCaretPosition(chatPane.getDocument().getLength());
+                    
+                    // Highlight tab if not currently selected
+                    for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                        if (tabbedPane.getTitleAt(i).equals(sender)) {
+                            if (tabbedPane.getSelectedIndex() != i) {
+                                // Add visual indicator for new message (could be enhanced with colors)
+                                tabbedPane.setTitleAt(i, sender + " *");
+                            }
+                            break;
+                        }
+                    }
                 }
-                
-                // Get the current text from the message receiver
-                String currentText = messageReceiver.getText();
-                if (currentText == null || currentText.trim().isEmpty()) {
-                    currentText = "";
-                }
-                
-                // Format the message for display
-                String displayMessage;
-                if (message.getSender().equals("system")) {
-                    displayMessage = "[System]: " + message.getContent() + "\n";
-                } else {
-                    displayMessage = message.getSender() + ": " + message.getContent() + "\n";
-                }
-                
-                // Append the new message to the current text
-                String newText = currentText + displayMessage;
-                System.out.println("[MESSAGE HANDLING] Received message: " + displayMessage.trim());
-                messageReceiver.setText(newText);
-                
-                // Auto-scroll to bottom
-                messageReceiver.setCaretPosition(messageReceiver.getDocument().getLength());
-            }
             });
         });
 
+    }
+
+    // Helper method to add close functionality to tabs
+    private static void addTabCloseFeature() {
+        tabbedPane.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    int tabIndex = tabbedPane.indexAtLocation(e.getX(), e.getY());
+                    if (tabIndex > 0) { // Don't allow closing welcome tab
+                        String tabTitle = tabbedPane.getTitleAt(tabIndex);
+                        if (tabTitle.endsWith(" *")) {
+                            tabTitle = tabTitle.substring(0, tabTitle.length() - 2);
+                        }
+                        
+                        int result = JOptionPane.showConfirmDialog(
+                            tabbedPane,
+                            "Chat mit " + tabTitle + " schließen?",
+                            "Chat schließen",
+                            JOptionPane.YES_NO_OPTION
+                        );
+                        
+                        if (result == JOptionPane.YES_OPTION) {
+                            chatTabs.remove(tabTitle);
+                            tabbedPane.removeTabAt(tabIndex);
+                            
+                            // Update current chat partner if this was the active tab
+                            if (tabTitle.equals(currentChatPartner)) {
+                                currentChatPartner = "";
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 
 
