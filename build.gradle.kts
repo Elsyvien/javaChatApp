@@ -10,7 +10,10 @@ repositories {
 }
 
 dependencies {
-    // WebSocket-Client: Tyrus (enthält API!)
+    // Jakarta WebSocket API (explicit dependency)
+    implementation("jakarta.websocket:jakarta.websocket-api:2.1.0")
+    
+    // WebSocket-Client: Tyrus (enthält Implementation)
     implementation("org.glassfish.tyrus.bundles:tyrus-standalone-client:2.1.3")
 
     // JSON-Binding (Yasson + API)
@@ -18,7 +21,7 @@ dependencies {
     implementation("org.eclipse:yasson:3.0.3")
 
     // Test
-    testImplementation("org.junit:junit-bom:5.10.0")
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 

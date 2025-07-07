@@ -8,6 +8,8 @@ package model;
  * @version 0.1 
  */
 import Crypto.RSAKey;
+import utils.CredentialsManager;
+import java.util.Properties;
 
 public class User {
     private String name;
@@ -15,11 +17,20 @@ public class User {
     private long lastLoginTime;
 
     public User(String name) {
+        this(name, false, null);
+    }
+    
+    public User(String name, boolean loadFromCredentials, Properties credentials) {
         this.name = name;
-        this.key = new RSAKey(); // Generate a new RSA key for the user 
+        this.key = new RSAKey(loadFromCredentials, credentials);
+        
+        // If new keys were generated, save them
+        if (!loadFromCredentials || credentials == null) {
+            CredentialsManager.saveCredentials(name, key.getN(), key.getE(), key.getD());
+        }
     }
 
-    public String getName() {
+    public String getUsername() {
         return name;
     }
 
