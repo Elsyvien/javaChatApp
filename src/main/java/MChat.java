@@ -16,6 +16,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 */
+import utils.ToggleSwitches; 
 import model.Message;
 import model.User;
 import Authentication.Authentication;
@@ -32,7 +33,7 @@ public class MChat {
     private static JTabbedPane tabbedPane;
     
     // Current settings for the chat client
-    private boolean morseMode = false; // Morse code mode 
+    private static boolean morseMode = false; // Morse code mode 
     /**
      * Main method to start the chat client application.
      * It checks for existing user credentials, allows user login or registration,
@@ -90,20 +91,24 @@ public class MChat {
         JTextField messageField = new JTextField(30);
         JButton sendButton = new JButton("Senden");
         JButton newChatButton = new JButton("Neuer Chat");
-        
 
-        JToggleButton toggleButton = new JToggleButton("Click Me");
-        ItemListener itemListener = new ItemListener() {
-            public void itemStateChanged(ItemEvent itemEvent) {
-                int state = itemEvent.getStateChange();
-                if (state == ItemEvent.SELECTED) {
-                    System.out.println("Selected"); // show your message here
-                } else {
-                    System.out.println("Deselected"); // remove your message
-                }
+        // Create toggle Button for Morse code mode
+        ToggleSwitches morseToggle = new ToggleSwitches();
+        morseToggle.setOn(false); // Default is off
+        
+        // Label for the toggle switch
+        JLabel morseLabel = new JLabel("Morse Code Modus:");
+
+        // Add item listener to toggle switch
+        morseToggle.addToggleListener(isOn -> {
+            if (isOn) {
+                morseMode = true;
+                System.out.println("[CLIENT] Morse Code Mode enabled.");
+            } else {
+                morseMode = false;
+                System.out.println("[CLIENT] Morse Code Mode disabled.");
             }
-        };
-        toggleButton.addItemListener(itemListener);
+        });
 
         // Create tabbed pane for multiple chats
         tabbedPane = new JTabbedPane();
@@ -126,12 +131,14 @@ public class MChat {
         // Panel für den Button (ganz unten)
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(newChatButton);
+        buttonPanel.add(morseLabel);
+        buttonPanel.add(morseToggle);
         
         // Kombiniere beide untere Panels
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(inputPanel, BorderLayout.CENTER);
         bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
-        bottomPanel.add(toggleButton, BorderLayout.EAST); // Add toggle button to the right side
+        
         // Alles zusammenfügen
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
@@ -224,8 +231,9 @@ public class MChat {
 
         // Send on button click
         sendButton.addActionListener(e -> {
-            String messageString = messageField.getText();
-            if (messageString.isEmpty()) {
+            String originalMessage = messageField.getText();
+        
+            if (originalMessage.isEmpty()) {
                 JOptionPane.showMessageDialog(frame, "Fehler: Nachricht ist leer", "Fehler", JOptionPane.ERROR_MESSAGE);
                 return;
             }
@@ -235,7 +243,17 @@ public class MChat {
                 return;
             }
             
-            Message message = new Message(user.getUsername(), messageString, currentChatPartner);
+            // Create final message string depending on Morse mode
+            final String messageToSend;
+            if (morseMode == true) {
+                messageToSend = utils.Morsecode.toMorse(originalMessage);
+                System.out.println("[CLIENT] Sending message in Morse Code: " + messageToSend);
+            } else {
+            messageToSend = originalMessage;
+            }
+
+
+            Message message = new Message(user.getUsername(), messageToSend, currentChatPartner);
             chatClient.sendMessage(message);
             messageField.setText("");
 
@@ -247,7 +265,7 @@ public class MChat {
                     if (currentText == null || currentText.trim().isEmpty()) {
                         currentText = "";
                     }
-                    String newText = currentText + "Du: " + messageString + "\n";
+                    String newText = currentText + "Du: " + messageToSend + "\n";
                     currentChatPane.setText(newText);
                     
                     // Auto-scroll to bottom
