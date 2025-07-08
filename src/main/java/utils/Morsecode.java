@@ -37,6 +37,7 @@ public class Morsecode {
      */
 
     public static String toMorse(String input) {
+        System.out.println("[MESSAGE HANDLING] Encoding to Morse Code: " + input);
         StringBuilder morseCode = new StringBuilder();
         input = input.toUpperCase();
         char[] characters = input.toCharArray(); // Convert the input string to a character array
@@ -57,6 +58,7 @@ public class Morsecode {
         return morseCode.toString().trim(); // Return the Morse code string without trailing spaces
     }
     public static String fromMorse(String morseCode) {
+        System.out.println("[MESSAGE HANDLING] Decoding Morse Code: " + morseCode);
         StringBuilder decodedText = new StringBuilder();
         String[] morseWords = morseCode.split("/"); // Split by word Seperator
         
@@ -90,7 +92,6 @@ public class Morsecode {
             // Add Space between words if it is not the last word    
             if (!word.equals(morseWords[morseWords.length - 1])) decodedText.append(" ");
         }
-       
         return decodedText.toString().trim(); // Return the decoded text without trailing spaces
     }
 }
