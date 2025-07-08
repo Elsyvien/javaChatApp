@@ -370,7 +370,7 @@ public class MChat {
                         System.out.println("[CLIENT] Message decrypted from: " + sender);
                         
                         // Decode Morse if detected
-                        if (decryptedContent.matches(".*[.-]{2,}.*")) {
+                        if (decryptedContent.matches(".*[.-]{2,}.*") && morseMode == true) {
                             String decodedMorse = utils.Morsecode.fromMorse(decryptedContent);
                             decryptedContent = decodedMorse + " (Morse decoded)";
                         }
