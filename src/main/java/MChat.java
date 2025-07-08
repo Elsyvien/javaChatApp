@@ -7,8 +7,6 @@ import java.net.URI;
 import javax.swing.*;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.event.ItemListener;
-import java.awt.event.ItemEvent;
 import java.util.HashMap;
 import java.util.Map;
 /*
@@ -23,6 +21,7 @@ import Authentication.Authentication;
 import utils.LoginDialog;
 import utils.CredentialsManager;
 import java.util.Properties;
+import java.math.BigInteger;
 
 public class MChat {
     // Stores the current chat partner's username
@@ -34,6 +33,11 @@ public class MChat {
     
     // Current settings for the chat client
     private static boolean morseMode = false; // Morse code mode 
+    
+    // Encryption key management
+    private static Map<String, BigInteger[]> publicKeys = new HashMap<>(); // username -> {n, e}
+    private static User user; // Make user accessible throughout the class
+    private static ChatClientEndpoint chatClient; // Make chatClient accessible throughout the class 
     /**
      * Main method to start the chat client application.
      * It checks for existing user credentials, allows user login or registration,
@@ -54,7 +58,6 @@ public class MChat {
 
         // Load RSA credentials for this user if they exist
         Properties userCredentials = CredentialsManager.loadCredentials(username);
-        User user;
         if (userCredentials != null) {
             System.out.println("[CLIENT] Loaded credentials for user: " + username);
             user = new User(username, true, userCredentials);
@@ -71,7 +74,7 @@ public class MChat {
         Authentication authentication = new Authentication(user);
         
         // Only one ChatClientEndpoint, constructed with authentication
-        ChatClientEndpoint chatClient = new ChatClientEndpoint(authentication, isNewUser);
+        chatClient = new ChatClientEndpoint(authentication, isNewUser);
         System.out.println("[CLIENT] Public key: " + user.getKey().getE().toString(16) + " " + user.getKey().getN().toString(16));
         
         String currentURI = "ws://localhost:8081/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
@@ -198,11 +201,14 @@ public class MChat {
             currentChatPartner = chatPartner;
             frame.setTitle("Chat Client - Chat mit " + currentChatPartner);
 
-            // Notify Server about the new Chat
+            // Notify Server about the new Chat and request public key
             try {
                 Message chatInitMessage = new Message(user.getUsername(), "init-chat:" + currentChatPartner);
                 System.out.println("[CLIENT] Sending chat initialization message: " + chatInitMessage);
-                chatClient.sendMessage(chatInitMessage); 
+                chatClient.sendMessage(chatInitMessage);
+                
+                // Request public key for encryption
+                requestPublicKey(currentChatPartner);
             } catch (Exception ex) {
                 System.err.println("[CLIENT] Error sending chat initialization message: " + ex.getMessage());
                 JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Chats: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
@@ -243,21 +249,38 @@ public class MChat {
                 return;
             }
             
-            // Create final message string depending on Morse mode
-            final String messageToSend;
-            if (morseMode == true) {
-                messageToSend = utils.Morsecode.toMorse(originalMessage);
-                System.out.println("[CLIENT] Sending message in Morse Code: " + messageToSend);
+            // 1. Apply Morse code if enabled
+            String processedMessage = originalMessage;
+            if (morseMode) {
+                processedMessage = utils.Morsecode.toMorse(originalMessage);
+                System.out.println("[CLIENT] Converted to Morse: " + processedMessage);
+            }
+            
+            // 2. Apply encryption
+            String finalMessage = processedMessage;
+            BigInteger[] recipientKey = publicKeys.get(currentChatPartner);
+            
+            if (recipientKey != null) {
+                try {
+                    finalMessage = user.getKey().encryptLongString(processedMessage, recipientKey[0], recipientKey[1]);
+                    System.out.println("[CLIENT] Message encrypted for: " + currentChatPartner);
+                } catch (Exception ex) {
+                    System.err.println("[CLIENT] Encryption failed: " + ex.getMessage());
+                    JOptionPane.showMessageDialog(frame, "Verschlüsselung fehlgeschlagen: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
             } else {
-            messageToSend = originalMessage;
+                // Request public key first
+                requestPublicKey(currentChatPartner);
+                JOptionPane.showMessageDialog(frame, "Lade Verschlüsselungsschlüssel...", "Info", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
 
-
-            Message message = new Message(user.getUsername(), messageToSend, currentChatPartner);
+            Message message = new Message(user.getUsername(), finalMessage, currentChatPartner);
             chatClient.sendMessage(message);
             messageField.setText("");
 
-            // Display the sent message in the current chat tab
+            // Display the sent message in the current chat tab (show original message)
             SwingUtilities.invokeLater(() -> {
                 JTextPane currentChatPane = chatTabs.get(currentChatPartner);
                 if (currentChatPane != null) {
@@ -265,7 +288,7 @@ public class MChat {
                     if (currentText == null || currentText.trim().isEmpty()) {
                         currentText = "";
                     }
-                    String newText = currentText + "Du: " + messageToSend + "\n";
+                    String newText = currentText + "Du: " + originalMessage + " 🔒\n";
                     currentChatPane.setText(newText);
                     
                     // Auto-scroll to bottom
@@ -277,6 +300,12 @@ public class MChat {
         // Waiting for new Messages
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
+                // Handle public key responses
+                if (message.getContent().startsWith("public-key:")) {
+                    handlePublicKeyResponse(message.getContent());
+                    return;
+                }
+                
                 // Handle system messages (like chat initialization confirmations)
                 if (message.getContent().startsWith("chat-init-success:")) {
                     String confirmedPartner = message.getContent().substring("chat-init-success:".length());
@@ -290,7 +319,7 @@ public class MChat {
                     return;
                 }
                 
-                // Handle regular chat messages
+                // Handle regular chat messages (encrypted)
                 String sender = message.getSender();
                 if (!sender.equals("system")) {
                     // Get or create chat tab for this sender
@@ -306,6 +335,29 @@ public class MChat {
                         
                         // Show notification for new chat
                         JOptionPane.showMessageDialog(frame, "Neue Nachricht von " + sender, "Neue Nachricht", JOptionPane.INFORMATION_MESSAGE);
+                        
+                        // Request public key for this new sender
+                        requestPublicKey(sender);
+                    }
+                    
+                    // Decrypt the message
+                    String encryptedContent = message.getContent();
+                    String decryptedContent = encryptedContent;
+                    
+                    try {
+                        // Decrypt with own private key
+                        decryptedContent = user.getKey().decryptLongString(encryptedContent);
+                        System.out.println("[CLIENT] Message decrypted from: " + sender);
+                        
+                        // Decode Morse if detected
+                        if (decryptedContent.matches(".*[.-]{2,}.*")) {
+                            String decodedMorse = utils.Morsecode.fromMorse(decryptedContent);
+                            decryptedContent = decodedMorse + " (Morse decoded)";
+                        }
+                        
+                    } catch (Exception ex) {
+                        System.err.println("[CLIENT] Decryption failed: " + ex.getMessage());
+                        decryptedContent = "[Verschlüsselte Nachricht - Entschlüsselung fehlgeschlagen]";
                     }
                     
                     // Add message to the appropriate chat tab
@@ -314,9 +366,9 @@ public class MChat {
                         currentText = "";
                     }
                     
-                    String displayMessage = sender + ": " + message.getContent() + "\n";
+                    String displayMessage = sender + ": " + decryptedContent + " 🔒\n";
                     String newText = currentText + displayMessage;
-                    System.out.println("[MESSAGE HANDLING] Received message: " + displayMessage.trim());
+                    System.out.println("[MESSAGE HANDLING] Received encrypted message from: " + sender);
                     chatPane.setText(newText);
                     
                     // Auto-scroll to bottom
@@ -336,6 +388,34 @@ public class MChat {
             });
         });
 
+    }
+
+    // Helper method to request public key from server
+    private static void requestPublicKey(String username) {
+        try {
+            Message keyRequest = new Message(user.getUsername(), "get-public-key:" + username);
+            chatClient.sendMessage(keyRequest);
+            System.out.println("[CLIENT] Requesting public key for: " + username);
+        } catch (Exception ex) {
+            System.err.println("[CLIENT] Failed to request public key: " + ex.getMessage());
+        }
+    }
+    
+    // Helper method to handle public key responses
+    private static void handlePublicKeyResponse(String response) {
+        // Format: "public-key:username:n:e"
+        String[] parts = response.split(":");
+        if (parts.length == 4) {
+            String username = parts[1];
+            BigInteger n = new BigInteger(parts[2], 16);
+            BigInteger e = new BigInteger(parts[3], 16);
+            
+            // Store public key for later use
+            publicKeys.put(username, new BigInteger[]{n, e});
+            System.out.println("[CLIENT] Public key received and stored for: " + username);
+        } else {
+            System.err.println("[CLIENT] Invalid public key response format: " + response);
+        }
     }
 
     // Helper method to add close functionality to tabs
