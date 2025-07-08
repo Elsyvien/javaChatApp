@@ -37,6 +37,10 @@ public class MChat {
     private static Map<String, JTextPane> chatTabs = new HashMap<>();
     private static JTabbedPane tabbedPane;
     
+    // Online users list
+    private static JList<String> onlineUsersList;
+    private static DefaultListModel<String> onlineUsersModel;
+    
     // Current settings for the chat client
     private static boolean morseMode = false; // Morse code mode 
     
@@ -132,6 +136,69 @@ public class MChat {
         JScrollPane welcomeScroll = new JScrollPane(welcomePane);
         tabbedPane.addTab("Willkommen", welcomeScroll);
 
+        // Create online users list
+        onlineUsersModel = new DefaultListModel<>();
+        onlineUsersList = new JList<>(onlineUsersModel);
+        onlineUsersList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane onlineUsersScroll = new JScrollPane(onlineUsersList);
+        onlineUsersScroll.setPreferredSize(new java.awt.Dimension(150, 300));
+        
+        // Add border and title to online users list
+        onlineUsersScroll.setBorder(BorderFactory.createTitledBorder("Online Benutzer"));
+        
+        // Add double-click listener to start chat with selected user
+        onlineUsersList.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                if (evt.getClickCount() == 2) {
+                    String selectedUser = onlineUsersList.getSelectedValue();
+                    if (selectedUser != null && !selectedUser.equals(username)) {
+                        // Check if tab already exists
+                        if (chatTabs.containsKey(selectedUser)) {
+                            // Switch to existing tab
+                            for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                                if (tabbedPane.getTitleAt(i).equals(selectedUser)) {
+                                    tabbedPane.setSelectedIndex(i);
+                                    currentChatPartner = selectedUser;
+                                    frame.setTitle("Chat Client - Chat mit " + currentChatPartner);
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Start new chat - inline implementation
+                            System.out.println("[CLIENT] Starting new chat with: " + selectedUser);
+                            
+                            // Create new chat tab
+                            JTextPane chatPane = new JTextPane();
+                            chatPane.setEditable(false);
+                            JScrollPane chatScroll = new JScrollPane(chatPane);
+                            
+                            // Add to tab management
+                            chatTabs.put(selectedUser, chatPane);
+                            tabbedPane.addTab(selectedUser, chatScroll);
+                            
+                            // Switch to new tab
+                            tabbedPane.setSelectedIndex(tabbedPane.getTabCount() - 1);
+                            currentChatPartner = selectedUser;
+                            frame.setTitle("Chat Client - Chat mit " + currentChatPartner);
+
+                            // Notify Server about the new Chat and request public key
+                            try {
+                                Message chatInitMessage = new Message(user.getUsername(), "init-chat:" + currentChatPartner);
+                                System.out.println("[CLIENT] Sending chat initialization message: " + chatInitMessage);
+                                chatClient.sendMessage(chatInitMessage);
+                                
+                                // Preload public key for encryption (non-blocking)
+                                PublicKeyManager.preloadPublicKey(currentChatPartner);
+                            } catch (Exception ex) {
+                                System.err.println("[CLIENT] Error sending chat initialization message: " + ex.getMessage());
+                                JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Chats: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
         // Erstelle verschiedene Panels für bessere Anordnung
         JPanel mainPanel = new JPanel(new BorderLayout());
         
@@ -152,6 +219,7 @@ public class MChat {
         bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
         
         // Alles zusammenfügen
+        mainPanel.add(onlineUsersScroll, BorderLayout.WEST);
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
         
@@ -320,6 +388,13 @@ public class MChat {
         // Waiting for new Messages
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
+                // Handle online users list updates
+                if ("online-users".equals(message.getSender())) {
+                    String onlineUsersData = message.getContent().substring("online-users:".length());
+                    updateOnlineUsersList(onlineUsersData);
+                    return;
+                }
+                
                 // Handle public key responses (now sender is "public-key")
                 if ("public-key".equals(message.getSender()) || message.getContent().startsWith("public-key:") || message.getContent().startsWith("public-key-not-found:")) {
                     PublicKeyManager.handlePublicKeyResponse(message.getContent());
@@ -369,6 +444,7 @@ public class MChat {
                         decryptedContent = user.getKey().decryptLongString(encryptedContent);
                         System.out.println("[CLIENT] Message decrypted from: " + sender);
                         
+
                         // Decode Morse if detected
                         if (decryptedContent.matches(".*[.-]{2,}.*") && morseMode == true) {
                             String decodedMorse = utils.Morsecode.fromMorse(decryptedContent);
@@ -408,6 +484,37 @@ public class MChat {
             });
         });
 
+    }
+
+    // Helper method to update online users list
+    private static void updateOnlineUsersList(String onlineUsersJson) {
+        try {
+            // Parse the JSON array of online users
+            // Simple JSON parsing without external libraries
+            String userListString = onlineUsersJson.trim();
+            if (userListString.startsWith("[") && userListString.endsWith("]")) {
+                userListString = userListString.substring(1, userListString.length() - 1);
+                
+                // Clear current list
+                onlineUsersModel.clear();
+                
+                if (!userListString.trim().isEmpty()) {
+                    // Split by comma and clean up quotes
+                    String[] users = userListString.split(",");
+                    for (String user : users) {
+                        user = user.trim();
+                        if (user.startsWith("\"") && user.endsWith("\"")) {
+                            user = user.substring(1, user.length() - 1);
+                        }
+                        onlineUsersModel.addElement(user);
+                    }
+                }
+                
+                System.out.println("[CLIENT] Updated online users list: " + onlineUsersModel.getSize() + " users");
+            }
+        } catch (Exception e) {
+            System.err.println("[CLIENT] Error parsing online users list: " + e.getMessage());
+        }
     }
 
     // Helper method to add close functionality to tabs

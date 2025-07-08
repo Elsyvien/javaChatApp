@@ -112,6 +112,16 @@ public class ChatClientEndpoint {
                 }
                 return;
 
+            } else if (messageJson.startsWith("online-users:")) {
+                System.out.println("[CLIENT] Received online users list: " + messageJson);
+                
+                // Forward online users list to listener
+                if (listener != null) {
+                    Message onlineUsersMessage = new Message("online-users", messageJson);
+                    listener.onNewMessage(onlineUsersMessage);
+                }
+                return;
+                
             } else if (messageJson.startsWith("public-key:")) {
                 System.out.println("[CLIENT] Received public key response: " + messageJson);
                 
