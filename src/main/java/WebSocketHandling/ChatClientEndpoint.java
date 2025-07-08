@@ -78,6 +78,7 @@ public class ChatClientEndpoint {
     public void onMessage(String messageJson) {
         try {
             System.out.println("[CLIENT] Server says: " + messageJson);
+
             if (messageJson.startsWith("challenge:")) { // Check if the message is a challenge from the server
                 String challenge = messageJson.substring("challenge:".length()); // Extract the challenge from the message
                 authentication.setChallenge(challenge); // Set the challenge in the Authentication object
@@ -99,6 +100,7 @@ public class ChatClientEndpoint {
                     Message systemMessage = new Message("system", messageJson);
                     listener.onNewMessage(systemMessage);
                 }
+
             } else if (messageJson.startsWith("chat-init-failure:")) {
                 System.err.println("[CLIENT] Chat initialization failed: " + messageJson);
                 
@@ -109,6 +111,18 @@ public class ChatClientEndpoint {
                     listener.onNewMessage(systemMessage);
                 }
                 return;
+
+            } else if (messageJson.startsWith("public-key:")) {
+                System.out.println("[CLIENT] Received public key response: " + messageJson);
+                
+                // Forward public key response to listener (non-JSON message)
+                if (listener != null) {
+                    // Create a special message to carry the public key data
+                    Message publicKeyMessage = new Message("public-key", messageJson);
+                    listener.onNewMessage(publicKeyMessage);
+                }
+                return;
+                
             } else { // Handle regular chat messages
                 System.out.println("[CLIENT] RAW JSON: " + messageJson);
                 Message message = jsonb.fromJson(messageJson, Message.class);

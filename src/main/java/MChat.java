@@ -7,8 +7,6 @@ import java.net.URI;
 import javax.swing.*;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.event.ItemListener;
-import java.awt.event.ItemEvent;
 import java.util.HashMap;
 import java.util.Map;
 /*
@@ -17,13 +15,20 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 */
 import utils.ToggleSwitches; 
+import utils.PublicKeyManager;
 import model.Message;
 import model.User;
 import Authentication.Authentication;
 import utils.LoginDialog;
 import utils.CredentialsManager;
 import java.util.Properties;
-
+/*
+ * This is the main class for the chat client application.
+ * It handles user login, chat initialization, message sending and receiving,
+ * also it contains the GUI setup for multiple chat tabs.
+ * @author Max Staneker, Mia Schienagel
+ * @version 1.2
+ */
 public class MChat {
     // Stores the current chat partner's username
     private static String currentChatPartner = "";
@@ -34,6 +39,10 @@ public class MChat {
     
     // Current settings for the chat client
     private static boolean morseMode = false; // Morse code mode 
+    
+    // Core components
+    private static User user; // Make user accessible throughout the class
+    private static ChatClientEndpoint chatClient; // Make chatClient accessible throughout the class 
     /**
      * Main method to start the chat client application.
      * It checks for existing user credentials, allows user login or registration,
@@ -54,7 +63,6 @@ public class MChat {
 
         // Load RSA credentials for this user if they exist
         Properties userCredentials = CredentialsManager.loadCredentials(username);
-        User user;
         if (userCredentials != null) {
             System.out.println("[CLIENT] Loaded credentials for user: " + username);
             user = new User(username, true, userCredentials);
@@ -71,7 +79,7 @@ public class MChat {
         Authentication authentication = new Authentication(user);
         
         // Only one ChatClientEndpoint, constructed with authentication
-        ChatClientEndpoint chatClient = new ChatClientEndpoint(authentication, isNewUser);
+        chatClient = new ChatClientEndpoint(authentication, isNewUser);
         System.out.println("[CLIENT] Public key: " + user.getKey().getE().toString(16) + " " + user.getKey().getN().toString(16));
         
         String currentURI = "ws://localhost:8081/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
@@ -80,6 +88,10 @@ public class MChat {
 
         try {
             container.connectToServer(chatClient, URI.create(currentURI)); // Connect to the WebSocket server
+            
+            // Initialize PublicKeyManager after successful connection
+            PublicKeyManager.initialize(chatClient, user);
+            System.out.println("[CLIENT] PublicKeyManager initialized");
         } catch (jakarta.websocket.DeploymentException | java.io.IOException e) {
             System.err.println("[CLIENT] Failed to connect to server: " + e.getMessage());
             e.printStackTrace();
@@ -198,11 +210,14 @@ public class MChat {
             currentChatPartner = chatPartner;
             frame.setTitle("Chat Client - Chat mit " + currentChatPartner);
 
-            // Notify Server about the new Chat
+            // Notify Server about the new Chat and request public key
             try {
                 Message chatInitMessage = new Message(user.getUsername(), "init-chat:" + currentChatPartner);
                 System.out.println("[CLIENT] Sending chat initialization message: " + chatInitMessage);
-                chatClient.sendMessage(chatInitMessage); 
+                chatClient.sendMessage(chatInitMessage);
+                
+                // Preload public key for encryption (non-blocking)
+                PublicKeyManager.preloadPublicKey(currentChatPartner);
             } catch (Exception ex) {
                 System.err.println("[CLIENT] Error sending chat initialization message: " + ex.getMessage());
                 JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Chats: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
@@ -243,54 +258,88 @@ public class MChat {
                 return;
             }
             
-            // Create final message string depending on Morse mode
-            final String messageToSend;
-            if (morseMode == true) {
-                messageToSend = utils.Morsecode.toMorse(originalMessage);
-                System.out.println("[CLIENT] Sending message in Morse Code: " + messageToSend);
-            } else {
-            messageToSend = originalMessage;
+            // Apply Morse code if enabled
+            String processedMessage = originalMessage;
+            if (morseMode) {
+                processedMessage = utils.Morsecode.toMorse(originalMessage);
+                System.out.println("[CLIENT] Converted to Morse: " + processedMessage);
             }
-
-
-            Message message = new Message(user.getUsername(), messageToSend, currentChatPartner);
-            chatClient.sendMessage(message);
-            messageField.setText("");
-
-            // Display the sent message in the current chat tab
-            SwingUtilities.invokeLater(() -> {
-                JTextPane currentChatPane = chatTabs.get(currentChatPartner);
-                if (currentChatPane != null) {
-                    String currentText = currentChatPane.getText();
-                    if (currentText == null || currentText.trim().isEmpty()) {
-                        currentText = "";
+            
+            // Get public key and encrypt message asynchronously
+            String finalProcessedMessage = processedMessage; // Make final for lambda (I hate functional programming lol)
+            PublicKeyManager.getPublicKey(currentChatPartner).thenAccept(recipientKey -> {
+                if (recipientKey != null) {
+                    try {
+                        String finalMessage = user.getKey().encryptLongString(finalProcessedMessage, recipientKey[0], recipientKey[1]);
+                        System.out.println("[CLIENT] Message encrypted for: " + currentChatPartner);
+                        
+                        // Send message
+                        Message message = new Message(user.getUsername(), finalMessage, currentChatPartner);
+                        chatClient.sendMessage(message);
+                        
+                        // Display the sent message in the current chat tab (show original message)
+                        SwingUtilities.invokeLater(() -> {
+                            JTextPane currentChatPane = chatTabs.get(currentChatPartner);
+                            if (currentChatPane != null) {
+                                String currentText = currentChatPane.getText();
+                                if (currentText == null || currentText.trim().isEmpty()) {
+                                    currentText = "";
+                                }
+                                String newText = currentText + "Du: " + originalMessage + " 🔒\n";
+                                currentChatPane.setText(newText);
+                                
+                                // Auto-scroll to bottom
+                                currentChatPane.setCaretPosition(currentChatPane.getDocument().getLength());
+                            }
+                        });
+                        
+                    } catch (Exception ex) {
+                        System.err.println("[CLIENT] Encryption failed: " + ex.getMessage());
+                        SwingUtilities.invokeLater(() -> {
+                            JOptionPane.showMessageDialog(frame, "Verschlüsselung fehlgeschlagen: " + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
+                        });
                     }
-                    String newText = currentText + "Du: " + messageToSend + "\n";
-                    currentChatPane.setText(newText);
-                    
-                    // Auto-scroll to bottom
-                    currentChatPane.setCaretPosition(currentChatPane.getDocument().getLength());
+                } else {
+                    System.err.println("[CLIENT] Could not retrieve public key for: " + currentChatPartner);
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(frame, "Verschlüsselungsschlüssel für " + currentChatPartner + " nicht verfügbar", "Fehler", JOptionPane.ERROR_MESSAGE);
+                    });
                 }
+            }).exceptionally(throwable -> {
+                System.err.println("[CLIENT] Failed to get public key: " + throwable.getMessage());
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(frame, "Fehler beim Laden des Verschlüsselungsschlüssels: " + throwable.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
+                });
+                return null;
             });
+            
+            // Clear message field immediately (optimistic UI, this could break but fuck it)
+            messageField.setText("");
         });
 
         // Waiting for new Messages
         chatClient.setMessageListener(message -> {
             SwingUtilities.invokeLater(() -> {
+                // Handle public key responses (now sender is "public-key")
+                if ("public-key".equals(message.getSender()) || message.getContent().startsWith("public-key:") || message.getContent().startsWith("public-key-not-found:")) {
+                    PublicKeyManager.handlePublicKeyResponse(message.getContent());
+                    return;
+                }
+                
                 // Handle system messages (like chat initialization confirmations)
-                if (message.getContent().startsWith("chat-init-success:")) {
+                if ("system".equals(message.getSender()) || message.getContent().startsWith("chat-init-success:")) {
                     String confirmedPartner = message.getContent().substring("chat-init-success:".length());
                     System.out.println("[CLIENT] Chat initialization confirmed for: " + confirmedPartner);
                     JOptionPane.showMessageDialog(frame, "Chat mit " + confirmedPartner + " erfolgreich gestartet.", "Chat bereit", JOptionPane.INFORMATION_MESSAGE);
                     return;
-                } else if (message.getContent().startsWith("chat-init-failure:")) {
+                } else if ("system".equals(message.getSender()) || message.getContent().startsWith("chat-init-failure:")) {
                     String errorMessage = message.getContent().substring("chat-init-failure:".length());
                     System.err.println("[CLIENT] Chat initialization failed: " + errorMessage);
                     JOptionPane.showMessageDialog(frame, "Chat-Start fehlgeschlagen: " + errorMessage, "Fehler", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
                 
-                // Handle regular chat messages
+                // Handle regular chat messages (encrypted)
                 String sender = message.getSender();
                 if (!sender.equals("system")) {
                     // Get or create chat tab for this sender
@@ -306,6 +355,29 @@ public class MChat {
                         
                         // Show notification for new chat
                         JOptionPane.showMessageDialog(frame, "Neue Nachricht von " + sender, "Neue Nachricht", JOptionPane.INFORMATION_MESSAGE);
+                        
+                        // Preload public key for this new sender
+                        PublicKeyManager.preloadPublicKey(sender);
+                    }
+                    
+                    // Decrypt the message
+                    String encryptedContent = message.getContent();
+                    String decryptedContent = encryptedContent;
+                    
+                    try {
+                        // Decrypt with own private key
+                        decryptedContent = user.getKey().decryptLongString(encryptedContent);
+                        System.out.println("[CLIENT] Message decrypted from: " + sender);
+                        
+                        // Decode Morse if detected
+                        if (decryptedContent.matches(".*[.-]{2,}.*") && morseMode == true) {
+                            String decodedMorse = utils.Morsecode.fromMorse(decryptedContent);
+                            decryptedContent = decodedMorse + " (Morse decoded)";
+                        }
+                        
+                    } catch (Exception ex) {
+                        System.err.println("[CLIENT] Decryption failed: " + ex.getMessage());
+                        decryptedContent = "[Verschlüsselte Nachricht - Entschlüsselung fehlgeschlagen]";
                     }
                     
                     // Add message to the appropriate chat tab
@@ -314,9 +386,9 @@ public class MChat {
                         currentText = "";
                     }
                     
-                    String displayMessage = sender + ": " + message.getContent() + "\n";
+                    String displayMessage = sender + ": " + decryptedContent + " 🔒\n";
                     String newText = currentText + displayMessage;
-                    System.out.println("[MESSAGE HANDLING] Received message: " + displayMessage.trim());
+                    System.out.println("[MESSAGE HANDLING] Received encrypted message from: " + sender);
                     chatPane.setText(newText);
                     
                     // Auto-scroll to bottom

@@ -60,12 +60,12 @@ public class Morsecode {
     public static String fromMorse(String morseCode) {
         System.out.println("[MESSAGE HANDLING] Decoding Morse Code: " + morseCode);
         StringBuilder decodedText = new StringBuilder();
-        String[] morseWords = morseCode.split("/"); // Split by word Seperator
+        String[] morseWords = morseCode.split(" / "); // Split by word separator (space-slash-space)
         
         for (String word : morseWords) {
-            String[] morseChats = word.trim().split(""); // Split by character
+            String[] morseChars = word.trim().split(" "); // Split by space to get individual morse characters
             
-            for (String morseChar : morseChats) {
+            for (String morseChar : morseChars) {
                 if (morseChar.isEmpty()) {
                     continue; // Skip empty strings
                 }
