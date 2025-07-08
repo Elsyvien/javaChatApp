@@ -109,6 +109,16 @@ public class ChatClientEndpoint {
                     listener.onNewMessage(systemMessage);
                 }
                 return;
+            } else if (messageJson.startsWith("public-key:")) {
+                System.out.println("[CLIENT] Received public key response: " + messageJson);
+                
+                // Forward public key response to listener (non-JSON message)
+                if (listener != null) {
+                    // Create a special message to carry the public key data
+                    Message publicKeyMessage = new Message("public-key", messageJson);
+                    listener.onNewMessage(publicKeyMessage);
+                }
+                return;
             } else { // Handle regular chat messages
                 System.out.println("[CLIENT] RAW JSON: " + messageJson);
                 Message message = jsonb.fromJson(messageJson, Message.class);
