@@ -149,7 +149,7 @@ public class MChat {
         // Add double-click listener to start chat with selected user
         onlineUsersList.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
-                if (evt.getClickCount() == 2) {
+                if (evt.getClickCount() == 2) { // Double-click detected send message to user
                     String selectedUser = onlineUsersList.getSelectedValue();
                     if (selectedUser != null && !selectedUser.equals(username)) {
                         // Check if tab already exists
@@ -333,7 +333,7 @@ public class MChat {
                 System.out.println("[CLIENT] Converted to Morse: " + processedMessage);
             }
             
-            // Get public key and encrypt message asynchronously
+            // Get public key and encrypt message 
             String finalProcessedMessage = processedMessage; // Make final for lambda (I hate functional programming lol)
             PublicKeyManager.getPublicKey(currentChatPartner).thenAccept(recipientKey -> {
                 if (recipientKey != null) {
@@ -493,7 +493,7 @@ public class MChat {
             // Simple JSON parsing without external libraries
             String userListString = onlineUsersJson.trim();
             if (userListString.startsWith("[") && userListString.endsWith("]")) {
-                userListString = userListString.substring(1, userListString.length() - 1);
+                userListString = userListString.substring(1, userListString.length() - 1); // Remove brackets
                 
                 // Clear current list
                 onlineUsersModel.clear();
