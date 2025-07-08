@@ -7,6 +7,8 @@ import java.net.URI;
 import javax.swing.*;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.ItemListener;
+import java.awt.event.ItemEvent;
 import java.util.HashMap;
 import java.util.Map;
 /*
@@ -28,7 +30,9 @@ public class MChat {
     // Chat management
     private static Map<String, JTextPane> chatTabs = new HashMap<>();
     private static JTabbedPane tabbedPane;
-
+    
+    // Current settings for the chat client
+    private boolean morseMode = false; // Morse code mode 
     /**
      * Main method to start the chat client application.
      * It checks for existing user credentials, allows user login or registration,
@@ -87,6 +91,20 @@ public class MChat {
         JButton sendButton = new JButton("Senden");
         JButton newChatButton = new JButton("Neuer Chat");
         
+
+        JToggleButton toggleButton = new JToggleButton("Click Me");
+        ItemListener itemListener = new ItemListener() {
+            public void itemStateChanged(ItemEvent itemEvent) {
+                int state = itemEvent.getStateChange();
+                if (state == ItemEvent.SELECTED) {
+                    System.out.println("Selected"); // show your message here
+                } else {
+                    System.out.println("Deselected"); // remove your message
+                }
+            }
+        };
+        toggleButton.addItemListener(itemListener);
+
         // Create tabbed pane for multiple chats
         tabbedPane = new JTabbedPane();
         
@@ -113,7 +131,7 @@ public class MChat {
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(inputPanel, BorderLayout.CENTER);
         bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
+        bottomPanel.add(toggleButton, BorderLayout.EAST); // Add toggle button to the right side
         // Alles zusammenfügen
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
