@@ -56,4 +56,41 @@ public class Morsecode {
         }
         return morseCode.toString().trim(); // Return the Morse code string without trailing spaces
     }
+    public static String fromMorse(String morseCode) {
+        StringBuilder decodedText = new StringBuilder();
+        String[] morseWords = morseCode.split("/"); // Split by word Seperator
+        
+        for (String word : morseWords) {
+            String[] morseChats = word.trim().split(""); // Split by character
+            
+            for (String morseChar : morseChats) {
+                if (morseChar.isEmpty()) {
+                    continue; // Skip empty strings
+                }
+
+                // Check if the morse character is a letter
+                for (int i = 0; i < morseAlphabet.length; i++) {
+                    if (morseChar.equals(morseAlphabet[i])) {
+                        decodedText.append(normalAlphabet[i]);
+                        break;
+                    }
+                }
+
+                // Check in numbers
+                for (int i = 0; i < morseNumbers.length; i++) {
+                    if (morseChar.equals(morseNumbers[i])) {
+                        decodedText.append(i); // Append the number directly
+                        break;
+                    }
+                }
+
+                // TODO: Check for punctuation for now we just skip it
+    
+            }
+            // Add Space between words if it is not the last word    
+            if (!word.equals(morseWords[morseWords.length - 1])) decodedText.append(" ");
+        }
+       
+        return decodedText.toString().trim(); // Return the decoded text without trailing spaces
+    }
 }
