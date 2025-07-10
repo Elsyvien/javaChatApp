@@ -1,20 +1,13 @@
 package utils;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.*;
 import java.awt.*;
 
-import utils.FileOperations;
-import utils.RegistrationClient;
+
 import model.User;
-import java.util.concurrent.ExecutionException;
 /**
  * A dialog for user login and registration.
  * It allows users to log in with existing credentials or register a new account.
