@@ -55,7 +55,14 @@ public class MChat {
      * @param args command line arguments (not used)
      */
     public static void main(String[] args) {
-
+        System.out.println("[CLIENT] Starting chat client application..." + "\n" + 
+                        "              _                            _                    _____      _           _   \n" + //
+                        "__      _____| | ___ ___  _ __ ___   ___  | |_ ___    _ __ ___ |___ /  ___| |__   __ _| |_ \n" + //
+                        "\\ \\ /\\ / / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\ | __/ _ \\  | '_ ` _ \\  |_ \\ / __| '_ \\ / _` | __|\n" + //
+                        " \\ V  V /  __/ | (_| (_) | | | | | |  __/ | || (_) | | | | | | |___) | (__| | | | (_| | |_ \n" + //
+                        "  \\_/\\_/ \\___|_|\\___\\___/|_| |_| |_|\\___|  \\__\\___/  |_| |_| |_|____/ \\___|_| |_|\\__,_|\\__|\n" + //
+                        "                                                                                           \n" + //
+                        "");
         // Always show login dialog (supports login and registration)
         LoginDialog loginDialog = new LoginDialog(null);
         String username = loginDialog.showDialog();
