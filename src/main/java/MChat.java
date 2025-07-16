@@ -93,7 +93,8 @@ public class MChat {
         chatClient = new ChatClientEndpoint(authentication, isNewUser);
         System.out.println("[CLIENT] Public key: " + user.getKey().getE().toString(16) + " " + user.getKey().getN().toString(16));
         
-        String currentURI = "ws://localhost:8081/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
+        String currentURI = "ws://localhost:8081/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat"; // Enter your IP and Port here
+        //String currentURI = "ws://192.168.0.26:8081/Gradle___com_maxstaneker_chatapp___chatApp_backend_1_0_SNAPSHOT_war/chat";
 
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
 
